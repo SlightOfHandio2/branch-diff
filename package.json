@@ -1,0 +1,108 @@
+{
+  "name": "branch-diff",
+  "displayName": "Branch Diff",
+  "description": "Show all changes on the current branch with VS Code's native gutter diff decorations.",
+  "version": "0.2.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "SCM Providers"
+  ],
+  "keywords": [
+    "git",
+    "branch",
+    "diff",
+    "gutter"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "branchDiff.chooseBase",
+        "title": "Branch Diff: Choose Comparison Branch"
+      },
+      {
+        "command": "branchDiff.useAutomaticBase",
+        "title": "Branch Diff: Use Automatic Base"
+      },
+      {
+        "command": "branchDiff.refresh",
+        "title": "Branch Diff: Refresh"
+      },
+      {
+        "command": "branchDiff.toggle",
+        "title": "Branch Diff: Toggle Decorations"
+      },
+      {
+        "command": "branchDiff.openChange",
+        "title": "Open Branch Change"
+      }
+    ],
+    "configuration": {
+      "title": "Branch Diff",
+      "properties": {
+        "branchDiff.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show native editor gutter decorations for changes made since the branch split from its comparison branch."
+        },
+        "branchDiff.baseBranch": {
+          "type": "string",
+          "default": "",
+          "description": "Branch or Git ref to compare with. Leave empty to use the automatic base strategy."
+        },
+        "branchDiff.automaticBaseStrategy": {
+          "type": "string",
+          "enum": [
+            "nearestAncestor",
+            "defaultBranch"
+          ],
+          "enumDescriptions": [
+            "Use the closest local branch whose tip is an ancestor of the current branch (ideal for stacked branches).",
+            "Use the repository's remote or conventional default branch."
+          ],
+          "default": "nearestAncestor",
+          "description": "How to choose the comparison branch when branchDiff.baseBranch is empty."
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "branchDiff.openChange",
+          "when": "false"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "branchDiff.refresh",
+          "group": "navigation",
+          "when": "scmProvider == branchDiff"
+        },
+        {
+          "command": "branchDiff.chooseBase",
+          "group": "navigation",
+          "when": "scmProvider == branchDiff"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "npm run compile && node --test dist/test/**/*.test.js",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^5.7.2"
+  }
+}
