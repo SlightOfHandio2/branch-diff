@@ -40,6 +40,16 @@ Use the scope control beside the base to choose what the comparison includes:
 
 The choice is saved per workspace in `branchDiff.scope`.
 
+Exclude generated or noisy files with glob patterns. Patterns without a slash match a filename at any depth; a leading slash anchors the match to the repository root:
+
+```json
+"branchDiff.exclude": [
+  "**/*.snap",
+  "dist/**",
+  "package-lock.json"
+]
+```
+
 Other commands:
 
 - **Branch Diff: Refresh**

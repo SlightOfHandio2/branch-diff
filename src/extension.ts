@@ -13,6 +13,7 @@ import {
   listLineChanges,
   listRefs,
   mergeBase,
+  pathMatchesPattern,
   resolveBase
 } from './git';
 
@@ -76,7 +77,7 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
       return undefined;
     }
     const relativePath = this.relativePath(uri);
-    if (relativePath.startsWith('.git/')) {
+    if (relativePath.startsWith('.git/') || this.isExcluded(relativePath)) {
       return undefined;
     }
     return makeOriginalUri(this.root, relativePath);
@@ -103,9 +104,10 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
       const strategy = this.configuration().get<AutomaticBaseStrategy>('automaticBaseStrategy', 'nearestAncestor');
       const branchBases = this.configuration().get<Record<string, string>>('branchBases', {});
       const scope = this.configuration().get<DiffScope>('scope', 'all');
+      const exclude = this.configuration().get<string[]>('exclude', []);
       const baseName = await resolveBase(this.root, configured, strategy, branchBases);
       const comparisonCommit = await mergeBase(this.root, baseName);
-      const branchChanges = await listChanges(this.root, comparisonCommit, scope);
+      const branchChanges = await listChanges(this.root, comparisonCommit, scope, exclude);
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
       }
@@ -359,6 +361,11 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
 
   private isEnabled(): boolean {
     return this.configuration().get<boolean>('enabled', true);
+  }
+
+  private isExcluded(relativePath: string): boolean {
+    return this.configuration().get<string[]>('exclude', [])
+      .some(pattern => pathMatchesPattern(relativePath, pattern));
   }
 
   private fireOpenOriginals(): void {

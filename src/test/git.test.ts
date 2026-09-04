@@ -4,7 +4,15 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import test from 'node:test';
-import { fileAtCommit, listChanges, mappedBase, mergeBase, parseLineChanges, resolveBase } from '../git';
+import {
+  fileAtCommit,
+  listChanges,
+  mappedBase,
+  mergeBase,
+  parseLineChanges,
+  pathMatchesPattern,
+  resolveBase
+} from '../git';
 
 function run(root: string, ...args: string[]): string {
   return execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
@@ -120,6 +128,32 @@ test('diff scopes separate committed, staged, and working-tree changes', async t
     { status: 'M', path: 'existing.txt' },
     { status: 'A', path: 'staged.txt' },
     { status: '?', path: 'untracked.txt' }
+  ]);
+});
+
+test('exclude patterns support filenames, directories, wildcards, and root anchoring', () => {
+  assert.equal(pathMatchesPattern('package-lock.json', 'package-lock.json'), true);
+  assert.equal(pathMatchesPattern('app/package-lock.json', 'package-lock.json'), true);
+  assert.equal(pathMatchesPattern('component.snap', '**/*.snap'), true);
+  assert.equal(pathMatchesPattern('src/components/component.snap', '**/*.snap'), true);
+  assert.equal(pathMatchesPattern('dist/app.js', 'dist/**'), true);
+  assert.equal(pathMatchesPattern('packages/app/dist/app.js', 'dist/**'), false);
+  assert.equal(pathMatchesPattern('package-lock.json', '/package-lock.json'), true);
+  assert.equal(pathMatchesPattern('app/package-lock.json', '/package-lock.json'), false);
+  assert.equal(pathMatchesPattern('release/1', 'release/?'), true);
+});
+
+test('excluded files are removed from branch changes', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  run(root, 'switch', '-c', 'feature');
+  writeFileSync(path.join(root, 'keep.ts'), 'keep\n');
+  writeFileSync(path.join(root, 'ignored.snap'), 'snapshot\n');
+  writeFileSync(path.join(root, 'package-lock.json'), '{}\n');
+  const base = await mergeBase(root, 'main');
+
+  assert.deepEqual(await listChanges(root, base, 'all', ['**/*.snap', 'package-lock.json']), [
+    { status: '?', path: 'keep.ts' }
   ]);
 });
 

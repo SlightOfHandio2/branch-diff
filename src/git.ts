@@ -144,7 +144,8 @@ export async function listRefs(root: string): Promise<string[]> {
 export async function listChanges(
   root: string,
   comparisonCommit: string,
-  scope: DiffScope = 'all'
+  scope: DiffScope = 'all',
+  excludePatterns: string[] = []
 ): Promise<BranchChange[]> {
   const output = await git(root, diffArgs(scope, comparisonCommit, ['--name-status', '-z']));
   const fields = output.split('\0').filter(Boolean);
@@ -159,7 +160,48 @@ export async function listChanges(
       changes.push({ status: '?', path: file });
     }
   }
-  return changes.sort((a, b) => a.path.localeCompare(b.path));
+  return changes
+    .filter(change => !excludePatterns.some(pattern => pathMatchesPattern(change.path, pattern)))
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+export function pathMatchesPattern(relativePath: string, pattern: string): boolean {
+  const path = relativePath.replace(/\\/g, '/');
+  let glob = pattern.replace(/\\/g, '/').trim();
+  if (!glob) {
+    return false;
+  }
+
+  const anchored = glob.startsWith('/');
+  if (anchored) {
+    glob = glob.slice(1);
+  }
+  if (glob.endsWith('/')) {
+    glob += '**';
+  }
+
+  let expression = '';
+  for (let index = 0; index < glob.length; index += 1) {
+    const character = glob[index];
+    if (character === '*' && glob[index + 1] === '*') {
+      index += 1;
+      if (glob[index + 1] === '/') {
+        index += 1;
+        expression += '(?:.*/)?';
+      } else {
+        expression += '.*';
+      }
+    } else if (character === '*') {
+      expression += '[^/]*';
+    } else if (character === '?') {
+      expression += '[^/]';
+    } else {
+      expression += character.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    }
+  }
+
+  const prefix = anchored || glob.includes('/') ? '^' : '(?:^|/)';
+  return new RegExp(`${prefix}${expression}$`).test(path);
 }
 
 export async function listLineChanges(

@@ -85,6 +85,16 @@
           "default": "all",
           "description": "Which changes to include in Branch Diff."
         },
+        "branchDiff.exclude": {
+          "type": "array",
+          "scope": "resource",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "markdownDescription": "Glob patterns for files Branch Diff should ignore. Supports `*`, `**`, and `?`. Examples: `**/*.snap`, `dist/**`, and `package-lock.json`."
+        },
         "branchDiff.branchBases": {
           "type": "object",
           "scope": "window",

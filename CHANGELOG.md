@@ -9,6 +9,7 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 - Per-branch comparison-base mappings with wildcard support.
 - Configurable colors for separate branch-change markers.
 - Diff scopes for committed-only, committed-plus-staged, and all changes.
+- Glob-based file exclusions across all diff scopes.
 
 ### Fixed
 
