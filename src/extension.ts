@@ -3,10 +3,14 @@ import * as vscode from 'vscode';
 import {
   AutomaticBaseStrategy,
   BranchChange,
+  BranchLineChange,
+  DiffScope,
   fileAtCommit,
+  fileAtIndex,
   findRepositoryRoot,
   git,
   listChanges,
+  listLineChanges,
   listRefs,
   mergeBase,
   resolveBase
@@ -18,7 +22,16 @@ const CONFIG_SECTION = 'branchDiff';
 interface OriginalLocation {
   root: string;
   relativePath: string;
+  revision?: 'HEAD' | 'index';
 }
+
+type BranchChangeKind = BranchLineChange['kind'];
+
+const DEFAULT_COLORS: Record<BranchChangeKind, string> = {
+  added: '#C586C0',
+  modified: '#D7BA7D',
+  deleted: '#F48771'
+};
 
 class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   readonly label = 'Branch changes';
@@ -26,6 +39,10 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   private readonly changes: vscode.SourceControlResourceGroup;
   private comparisonCommit: string | undefined;
   private baseName: string | undefined;
+  private scope: DiffScope = 'all';
+  private readonly branchChanges = new Map<string, BranchChange>();
+  private decorationTypes: Record<BranchChangeKind, vscode.TextEditorDecorationType> | undefined;
+  private decorationColorSignature = '';
   private refreshTimer: NodeJS.Timeout | undefined;
   private refreshGeneration = 0;
   private disposed = false;
@@ -55,7 +72,7 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   }
 
   async provideOriginalResource(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
-    if (!this.comparisonCommit || !this.isEnabled() || !this.owns(uri)) {
+    if (!this.comparisonCommit || this.scope !== 'all' || !this.isEnabled() || !this.owns(uri)) {
       return undefined;
     }
     const relativePath = this.relativePath(uri);
@@ -73,32 +90,45 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     if (!this.isEnabled()) {
       this.comparisonCommit = undefined;
       this.changes.resourceStates = [];
+      this.branchChanges.clear();
+      this.sourceControl.quickDiffProvider = undefined;
       this.updateStatusBar('off');
       this.fireOpenOriginals();
+      this.clearVisibleDecorations();
       return;
     }
 
     try {
       const configured = this.configuration().get<string>('baseBranch', '');
       const strategy = this.configuration().get<AutomaticBaseStrategy>('automaticBaseStrategy', 'nearestAncestor');
-      const baseName = await resolveBase(this.root, configured, strategy);
+      const branchBases = this.configuration().get<Record<string, string>>('branchBases', {});
+      const scope = this.configuration().get<DiffScope>('scope', 'all');
+      const baseName = await resolveBase(this.root, configured, strategy, branchBases);
       const comparisonCommit = await mergeBase(this.root, baseName);
-      const branchChanges = await listChanges(this.root, comparisonCommit);
+      const branchChanges = await listChanges(this.root, comparisonCommit, scope);
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
       }
       this.baseName = baseName;
       this.comparisonCommit = comparisonCommit;
+      this.scope = scope;
+      this.sourceControl.quickDiffProvider = scope === 'all' ? this : undefined;
+      this.branchChanges.clear();
+      branchChanges.forEach(change => this.branchChanges.set(change.path, change));
       this.changes.resourceStates = branchChanges.map(change => this.resourceState(change));
       this.updateStatusBar(this.baseName);
       this.fireOpenOriginals();
+      await this.decorateVisibleEditors();
     } catch (error) {
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
       }
       this.comparisonCommit = undefined;
       this.changes.resourceStates = [];
+      this.branchChanges.clear();
+      this.sourceControl.quickDiffProvider = undefined;
       this.updateStatusBar('unavailable');
+      this.clearVisibleDecorations();
       if (showErrors) {
         void vscode.window.showErrorMessage(`Branch Diff: ${errorMessage(error)}`);
       }
@@ -113,6 +143,12 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   }
 
   async originalContent(location: OriginalLocation): Promise<string> {
+    if (location.revision === 'HEAD') {
+      return fileAtCommit(location.root, 'HEAD', location.relativePath);
+    }
+    if (location.revision === 'index') {
+      return fileAtIndex(location.root, location.relativePath);
+    }
     if (!this.comparisonCommit) {
       return '';
     }
@@ -138,19 +174,90 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     await this.refresh(true);
   }
 
-  async openChange(uri: vscode.Uri): Promise<void> {
-    const original = await this.provideOriginalResource(uri);
-    if (!original) {
+  async chooseScope(): Promise<void> {
+    const choices: Array<vscode.QuickPickItem & { scope: DiffScope }> = [
+      {
+        label: '$(git-commit) Committed only',
+        description: 'Changes committed after the branch split',
+        scope: 'committed'
+      },
+      {
+        label: '$(diff-added) Committed + staged',
+        description: 'Committed changes plus the current Git index',
+        scope: 'staged'
+      },
+      {
+        label: '$(workspace-trusted) Everything',
+        description: 'Committed, staged, unstaged, and untracked changes',
+        scope: 'all'
+      }
+    ];
+    const selected = await vscode.window.showQuickPick(choices, {
+      title: 'Branch Diff: choose which changes to include',
+      placeHolder: `Current scope: ${scopeLabel(this.scope)}`
+    });
+    if (!selected) {
       return;
     }
-    let current = uri;
-    try {
-      await vscode.workspace.fs.stat(uri);
-    } catch {
-      current = makeOriginalUri(this.root, this.relativePath(uri), true);
+    await this.configuration().update('scope', selected.scope, vscode.ConfigurationTarget.WorkspaceFolder);
+    await this.refresh(true);
+  }
+
+  async openChange(uri: vscode.Uri): Promise<void> {
+    if (!this.comparisonCommit || !this.isEnabled() || !this.owns(uri)) {
+      return;
     }
-    const title = `${this.baseName ?? 'base'} ↔ ${path.basename(uri.fsPath)}`;
+    const original = makeOriginalUri(this.root, this.relativePath(uri));
+    let current: vscode.Uri;
+    if (this.scope === 'committed') {
+      current = makeOriginalUri(this.root, this.relativePath(uri), false, 'HEAD');
+    } else if (this.scope === 'staged') {
+      current = makeOriginalUri(this.root, this.relativePath(uri), false, 'index');
+    } else {
+      current = uri;
+      try {
+        await vscode.workspace.fs.stat(uri);
+      } catch {
+        current = makeOriginalUri(this.root, this.relativePath(uri), true);
+      }
+    }
+    const title = `${this.baseName ?? 'base'} ↔ ${path.basename(uri.fsPath)} (${scopeLabel(this.scope)})`;
     await vscode.commands.executeCommand('vscode.diff', original, current, title);
+  }
+
+  async decorate(editor: vscode.TextEditor): Promise<void> {
+    if (!this.owns(editor.document.uri) || !this.isEnabled() || !this.comparisonCommit) {
+      return;
+    }
+    const types = this.ensureDecorationTypes();
+    const relativePath = this.relativePath(editor.document.uri);
+    const change = this.branchChanges.get(relativePath);
+    if (!change) {
+      this.clearDecorations(editor, types);
+      return;
+    }
+
+    const comparisonCommit = this.comparisonCommit;
+    const scope = this.scope;
+    let lineChanges: BranchLineChange[];
+    if (change.status === '?' || (change.status === 'A' && scope === 'all')) {
+      lineChanges = [{ startLine: 1, lineCount: editor.document.lineCount, kind: 'added' }];
+    } else {
+      lineChanges = await listLineChanges(this.root, comparisonCommit, relativePath, scope);
+    }
+    if (this.disposed || comparisonCommit !== this.comparisonCommit || scope !== this.scope) {
+      return;
+    }
+
+    const ranges: Record<BranchChangeKind, vscode.Range[]> = { added: [], modified: [], deleted: [] };
+    for (const lineChange of lineChanges) {
+      const start = Math.min(editor.document.lineCount - 1, Math.max(0, lineChange.startLine - 1));
+      const end = Math.min(editor.document.lineCount - 1, start + lineChange.lineCount - 1);
+      ranges[lineChange.kind].push(new vscode.Range(start, 0, end, editor.document.lineAt(end).range.end.character));
+    }
+    for (const kind of Object.keys(ranges) as BranchChangeKind[]) {
+      editor.setDecorations(types[kind], ranges[kind]);
+    }
   }
 
   dispose(): void {
@@ -158,7 +265,55 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
     }
+    Object.values(this.decorationTypes ?? {}).forEach(type => type.dispose());
     this.sourceControl.dispose();
+  }
+
+  private ensureDecorationTypes(): Record<BranchChangeKind, vscode.TextEditorDecorationType> {
+    const configured = this.configuration().get<Partial<Record<BranchChangeKind, string>>>('colors', {});
+    const colors = { ...DEFAULT_COLORS, ...configured };
+    const signature = JSON.stringify(colors);
+    if (this.decorationTypes && signature === this.decorationColorSignature) {
+      return this.decorationTypes;
+    }
+    Object.values(this.decorationTypes ?? {}).forEach(type => type.dispose());
+    this.decorationColorSignature = signature;
+    this.decorationTypes = {
+      added: this.createDecorationType(colors.added),
+      modified: this.createDecorationType(colors.modified),
+      deleted: this.createDecorationType(colors.deleted)
+    };
+    return this.decorationTypes;
+  }
+
+  private createDecorationType(color: string): vscode.TextEditorDecorationType {
+    return vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      borderColor: color,
+      borderStyle: 'solid',
+      borderWidth: '0 0 0 3px',
+      overviewRulerColor: color,
+      overviewRulerLane: vscode.OverviewRulerLane.Left,
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
+    });
+  }
+
+  private async decorateVisibleEditors(): Promise<void> {
+    await Promise.all(vscode.window.visibleTextEditors.map(editor => this.decorate(editor)));
+  }
+
+  private clearVisibleDecorations(): void {
+    if (!this.decorationTypes) {
+      return;
+    }
+    vscode.window.visibleTextEditors.forEach(editor => this.clearDecorations(editor, this.decorationTypes!));
+  }
+
+  private clearDecorations(
+    editor: vscode.TextEditor,
+    types: Record<BranchChangeKind, vscode.TextEditorDecorationType>
+  ): void {
+    Object.values(types).forEach(type => editor.setDecorations(type, []));
   }
 
   private resourceState(change: BranchChange): vscode.SourceControlResourceState {
@@ -180,11 +335,18 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   }
 
   private updateStatusBar(base: string): void {
-    this.sourceControl.statusBarCommands = [{
-      command: 'branchDiff.chooseBase',
-      title: `$(git-compare) Base: ${base}`,
-      tooltip: 'Choose the branch used by Branch Diff'
-    }];
+    this.sourceControl.statusBarCommands = [
+      {
+        command: 'branchDiff.chooseBase',
+        title: `$(git-compare) Base: ${base}`,
+        tooltip: 'Choose the branch used by Branch Diff'
+      },
+      {
+        command: 'branchDiff.chooseScope',
+        title: `$(filter) ${scopeLabel(this.scope)}`,
+        tooltip: 'Choose which changes Branch Diff includes'
+      }
+    ];
   }
 
   private relativePath(uri: vscode.Uri): string {
@@ -229,10 +391,16 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this),
       vscode.commands.registerCommand('branchDiff.refresh', () => this.forSelected(repository => repository.refresh(true))),
       vscode.commands.registerCommand('branchDiff.chooseBase', () => this.forSelected(repository => repository.chooseBase())),
+      vscode.commands.registerCommand('branchDiff.chooseScope', () => this.forSelected(repository => repository.chooseScope())),
       vscode.commands.registerCommand('branchDiff.useAutomaticBase', () => this.setAutomaticBase()),
       vscode.commands.registerCommand('branchDiff.toggle', () => this.toggle()),
       vscode.commands.registerCommand('branchDiff.openChange', (uri: vscode.Uri) => this.repositoryFor(uri)?.openChange(uri)),
       vscode.workspace.onDidSaveTextDocument(document => this.repositoryFor(document.uri)?.scheduleRefresh()),
+      vscode.window.onDidChangeVisibleTextEditors(editors => {
+        for (const editor of editors) {
+          void this.repositoryFor(editor.document.uri)?.decorate(editor);
+        }
+      }),
       vscode.workspace.onDidChangeConfiguration(event => {
         if (event.affectsConfiguration(CONFIG_SECTION)) {
           void this.refreshAll();
@@ -340,10 +508,18 @@ interface GitExtension {
   };
 }
 
-function makeOriginalUri(root: string, relativePath: string, empty = false): vscode.Uri {
+function makeOriginalUri(
+  root: string,
+  relativePath: string,
+  empty = false,
+  revision?: OriginalLocation['revision']
+): vscode.Uri {
   const query = new URLSearchParams({ root });
   if (empty) {
     query.set('empty', '1');
+  }
+  if (revision) {
+    query.set('revision', revision);
   }
   return vscode.Uri.from({ scheme: SCHEME, path: `/${relativePath}`, query: query.toString() });
 }
@@ -353,7 +529,16 @@ function parseOriginalUri(uri: vscode.Uri): OriginalLocation | undefined {
   if (!root) {
     return undefined;
   }
-  return { root, relativePath: uri.path.replace(/^\//, '') };
+  const revision = new URLSearchParams(uri.query).get('revision');
+  return {
+    root,
+    relativePath: uri.path.replace(/^\//, ''),
+    revision: revision === 'HEAD' || revision === 'index' ? revision : undefined
+  };
+}
+
+function scopeLabel(scope: DiffScope): string {
+  return ({ committed: 'Committed only', staged: 'Committed + staged', all: 'Everything' })[scope];
 }
 
 function statusLabel(status: string): string {

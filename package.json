@@ -5,6 +5,14 @@
   "version": "0.2.0",
   "publisher": "local",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SlightOfHandio2/branch-diff.git"
+  },
+  "homepage": "https://github.com/SlightOfHandio2/branch-diff#readme",
+  "bugs": {
+    "url": "https://github.com/SlightOfHandio2/branch-diff/issues"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -26,6 +34,10 @@
       {
         "command": "branchDiff.chooseBase",
         "title": "Branch Diff: Choose Comparison Branch"
+      },
+      {
+        "command": "branchDiff.chooseScope",
+        "title": "Branch Diff: Choose Diff Scope"
       },
       {
         "command": "branchDiff.useAutomaticBase",
@@ -57,6 +69,31 @@
           "default": "",
           "description": "Branch or Git ref to compare with. Leave empty to use the automatic base strategy."
         },
+        "branchDiff.scope": {
+          "type": "string",
+          "scope": "resource",
+          "enum": [
+            "committed",
+            "staged",
+            "all"
+          ],
+          "enumDescriptions": [
+            "Only changes committed after the branch split.",
+            "Committed changes plus changes in the Git index.",
+            "Committed, staged, unstaged, and untracked changes."
+          ],
+          "default": "all",
+          "description": "Which changes to include in Branch Diff."
+        },
+        "branchDiff.branchBases": {
+          "type": "object",
+          "scope": "window",
+          "default": {},
+          "additionalProperties": {
+            "type": "string"
+          },
+          "markdownDescription": "Map current branch names or wildcard patterns to comparison branches. Exact names take priority. Example: `{ \"feature/*\": \"develop\", \"release/*\": \"main\" }`. Used when `branchDiff.baseBranch` is empty."
+        },
         "branchDiff.automaticBaseStrategy": {
           "type": "string",
           "enum": [
@@ -69,6 +106,37 @@
           ],
           "default": "nearestAncestor",
           "description": "How to choose the comparison branch when branchDiff.baseBranch is empty."
+        },
+        "branchDiff.colors": {
+          "type": "object",
+          "scope": "window",
+          "default": {
+            "added": "#C586C0",
+            "modified": "#D7BA7D",
+            "deleted": "#F48771"
+          },
+          "properties": {
+            "added": {
+              "type": "string",
+              "format": "color-hex",
+              "default": "#C586C0",
+              "description": "Marker color for lines added on the branch."
+            },
+            "modified": {
+              "type": "string",
+              "format": "color-hex",
+              "default": "#D7BA7D",
+              "description": "Marker color for lines modified on the branch."
+            },
+            "deleted": {
+              "type": "string",
+              "format": "color-hex",
+              "default": "#F48771",
+              "description": "Marker color for lines deleted on the branch."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Colors for Branch Diff's separate editor and overview-ruler markers."
         }
       }
     },
@@ -89,15 +157,22 @@
           "command": "branchDiff.chooseBase",
           "group": "navigation",
           "when": "scmProvider == branchDiff"
+        },
+        {
+          "command": "branchDiff.chooseScope",
+          "group": "navigation",
+          "when": "scmProvider == branchDiff"
         }
       ]
     }
   },
   "scripts": {
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "npm run compile && node --test dist/test/**/*.test.js",
-    "package": "npx @vscode/vsce package"
+    "check": "npm test",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

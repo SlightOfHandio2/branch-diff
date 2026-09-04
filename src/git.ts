@@ -8,7 +8,14 @@ export interface BranchChange {
   status: string;
 }
 
+export interface BranchLineChange {
+  startLine: number;
+  lineCount: number;
+  kind: 'added' | 'modified' | 'deleted';
+}
+
 export type AutomaticBaseStrategy = 'nearestAncestor' | 'defaultBranch';
+export type DiffScope = 'committed' | 'staged' | 'all';
 
 export async function git(root: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync('git', ['-C', root, ...args], {
@@ -30,11 +37,19 @@ export async function findRepositoryRoot(folder: string): Promise<string | undef
 export async function resolveBase(
   root: string,
   configuredBase: string,
-  strategy: AutomaticBaseStrategy = 'nearestAncestor'
+  strategy: AutomaticBaseStrategy = 'nearestAncestor',
+  branchBases: Record<string, string> = {}
 ): Promise<string> {
   if (configuredBase.trim()) {
     await git(root, ['rev-parse', '--verify', `${configuredBase.trim()}^{commit}`]);
     return configuredBase.trim();
+  }
+
+  const current = (await git(root, ['branch', '--show-current'])).trim();
+  const mapped = mappedBase(current, branchBases);
+  if (mapped) {
+    await git(root, ['rev-parse', '--verify', `${mapped}^{commit}`]);
+    return mapped;
   }
 
   if (strategy === 'nearestAncestor') {
@@ -45,6 +60,28 @@ export async function resolveBase(
   }
 
   return resolveDefaultBranch(root);
+}
+
+export function mappedBase(currentBranch: string, branchBases: Record<string, string>): string | undefined {
+  const exact = branchBases[currentBranch]?.trim();
+  if (exact) {
+    return exact;
+  }
+  for (const [pattern, base] of Object.entries(branchBases)) {
+    const value = base.trim();
+    if (value && pattern !== currentBranch && matchesBranchPattern(currentBranch, pattern)) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function matchesBranchPattern(branch: string, pattern: string): boolean {
+  const expression = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(`^${expression}$`).test(branch);
 }
 
 async function nearestAncestorBranch(root: string): Promise<string | undefined> {
@@ -104,26 +141,78 @@ export async function listRefs(root: string): Promise<string[]> {
   return [...new Set(output.split('\n').map(ref => ref.trim()).filter(ref => ref && !ref.endsWith('/HEAD')))];
 }
 
-export async function listChanges(root: string, comparisonCommit: string): Promise<BranchChange[]> {
-  const output = await git(root, [
-    'diff',
-    '--name-status',
-    '-z',
-    '--no-renames',
-    comparisonCommit,
-    '--'
-  ]);
+export async function listChanges(
+  root: string,
+  comparisonCommit: string,
+  scope: DiffScope = 'all'
+): Promise<BranchChange[]> {
+  const output = await git(root, diffArgs(scope, comparisonCommit, ['--name-status', '-z']));
   const fields = output.split('\0').filter(Boolean);
   const changes: BranchChange[] = [];
   for (let i = 0; i + 1 < fields.length; i += 2) {
     changes.push({ status: fields[i][0], path: fields[i + 1] });
   }
 
-  const untracked = await git(root, ['ls-files', '--others', '--exclude-standard', '-z']);
-  for (const file of untracked.split('\0').filter(Boolean)) {
-    changes.push({ status: '?', path: file });
+  if (scope === 'all') {
+    const untracked = await git(root, ['ls-files', '--others', '--exclude-standard', '-z']);
+    for (const file of untracked.split('\0').filter(Boolean)) {
+      changes.push({ status: '?', path: file });
+    }
   }
   return changes.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+export async function listLineChanges(
+  root: string,
+  comparisonCommit: string,
+  relativePath: string,
+  scope: DiffScope = 'all'
+): Promise<BranchLineChange[]> {
+  const output = await git(root, diffArgs(scope, comparisonCommit, [
+    '--unified=0',
+    '--no-ext-diff'
+  ], relativePath));
+  return parseLineChanges(output);
+}
+
+function diffArgs(
+  scope: DiffScope,
+  comparisonCommit: string,
+  options: string[],
+  relativePath?: string
+): string[] {
+  const args = ['diff', ...options, '--no-renames'];
+  if (scope === 'staged') {
+    args.push('--cached', comparisonCommit);
+  } else if (scope === 'committed') {
+    args.push(comparisonCommit, 'HEAD');
+  } else {
+    args.push(comparisonCommit);
+  }
+  args.push('--');
+  if (relativePath) {
+    args.push(relativePath);
+  }
+  return args;
+}
+
+export function parseLineChanges(diff: string): BranchLineChange[] {
+  const changes: BranchLineChange[] = [];
+  for (const line of diff.split('\n')) {
+    const match = /^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (!match) {
+      continue;
+    }
+    const oldCount = match[1] === undefined ? 1 : Number.parseInt(match[1], 10);
+    const startLine = Number.parseInt(match[2], 10);
+    const newCount = match[3] === undefined ? 1 : Number.parseInt(match[3], 10);
+    changes.push({
+      startLine: Math.max(1, startLine),
+      lineCount: Math.max(1, newCount),
+      kind: oldCount === 0 ? 'added' : newCount === 0 ? 'deleted' : 'modified'
+    });
+  }
+  return changes;
 }
 
 export async function fileAtCommit(root: string, commit: string, relativePath: string): Promise<string> {
@@ -131,6 +220,14 @@ export async function fileAtCommit(root: string, commit: string, relativePath: s
     return await git(root, ['show', `${commit}:${relativePath}`]);
   } catch {
     // Missing at the baseline means the current file was added on this branch.
+    return '';
+  }
+}
+
+export async function fileAtIndex(root: string, relativePath: string): Promise<string> {
+  try {
+    return await git(root, ['show', `:${relativePath}`]);
+  } catch {
     return '';
   }
 }
