@@ -27,6 +27,7 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   private comparisonCommit: string | undefined;
   private baseName: string | undefined;
   private refreshTimer: NodeJS.Timeout | undefined;
+  private refreshGeneration = 0;
   private disposed = false;
 
   constructor(
@@ -49,6 +50,10 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     return uri.scheme === 'file' && relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
   }
 
+  hasRoot(uri: vscode.Uri): boolean {
+    return uri.scheme === 'file' && path.relative(this.root, uri.fsPath) === '';
+  }
+
   async provideOriginalResource(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
     if (!this.comparisonCommit || !this.isEnabled() || !this.owns(uri)) {
       return undefined;
@@ -64,6 +69,7 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     if (this.disposed) {
       return;
     }
+    const generation = ++this.refreshGeneration;
     if (!this.isEnabled()) {
       this.comparisonCommit = undefined;
       this.changes.resourceStates = [];
@@ -75,13 +81,21 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     try {
       const configured = this.configuration().get<string>('baseBranch', '');
       const strategy = this.configuration().get<AutomaticBaseStrategy>('automaticBaseStrategy', 'nearestAncestor');
-      this.baseName = await resolveBase(this.root, configured, strategy);
-      this.comparisonCommit = await mergeBase(this.root, this.baseName);
-      const branchChanges = await listChanges(this.root, this.comparisonCommit);
+      const baseName = await resolveBase(this.root, configured, strategy);
+      const comparisonCommit = await mergeBase(this.root, baseName);
+      const branchChanges = await listChanges(this.root, comparisonCommit);
+      if (this.disposed || generation !== this.refreshGeneration) {
+        return;
+      }
+      this.baseName = baseName;
+      this.comparisonCommit = comparisonCommit;
       this.changes.resourceStates = branchChanges.map(change => this.resourceState(change));
       this.updateStatusBar(this.baseName);
       this.fireOpenOriginals();
     } catch (error) {
+      if (this.disposed || generation !== this.refreshGeneration) {
+        return;
+      }
       this.comparisonCommit = undefined;
       this.changes.resourceStates = [];
       this.updateStatusBar('unavailable');
@@ -299,7 +313,11 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     try {
       const api = (await extension.activate()).getAPI(1);
       const attach = (repository: GitRepository) => {
-        const disposable = repository.state.onDidChange(() => this.repositoryFor(repository.rootUri)?.scheduleRefresh());
+        const branchRepository = this.repositories.find(candidate => candidate.hasRoot(repository.rootUri));
+        if (!branchRepository) {
+          return;
+        }
+        const disposable = repository.state.onDidChange(() => branchRepository.scheduleRefresh());
         this.disposables.push(disposable);
       };
       api.repositories.forEach(attach);
