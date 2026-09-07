@@ -34,10 +34,8 @@ const DEFAULT_COLORS: Record<BranchChangeKind, string> = {
   deleted: '#F48771'
 };
 
-class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
+class BranchRepository implements vscode.Disposable {
   readonly label = 'Branch changes';
-  private readonly sourceControl: vscode.SourceControl;
-  private readonly changes: vscode.SourceControlResourceGroup;
   private comparisonCommit: string | undefined;
   private baseName: string | undefined;
   private scope: DiffScope = 'all';
@@ -51,17 +49,9 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   constructor(
     readonly root: string,
     readonly workspaceFolder: vscode.WorkspaceFolder,
-    private readonly contentChanged: vscode.EventEmitter<vscode.Uri>
-  ) {
-    this.sourceControl = vscode.scm.createSourceControl(
-      'branchDiff',
-      `Branch Changes — ${path.basename(root)}`,
-      vscode.Uri.file(root)
-    );
-    this.sourceControl.inputBox.visible = false;
-    this.changes = this.sourceControl.createResourceGroup('branchChanges', 'Changes from base');
-    this.sourceControl.quickDiffProvider = this;
-  }
+    private readonly contentChanged: vscode.EventEmitter<vscode.Uri>,
+    private readonly treeChanged: () => void
+  ) {}
 
   owns(uri: vscode.Uri): boolean {
     const relative = path.relative(this.root, uri.fsPath);
@@ -72,17 +62,6 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     return uri.scheme === 'file' && path.relative(this.root, uri.fsPath) === '';
   }
 
-  async provideOriginalResource(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
-    if (!this.comparisonCommit || this.scope !== 'all' || !this.isEnabled() || !this.owns(uri)) {
-      return undefined;
-    }
-    const relativePath = this.relativePath(uri);
-    if (relativePath.startsWith('.git/') || this.isExcluded(relativePath)) {
-      return undefined;
-    }
-    return makeOriginalUri(this.root, relativePath);
-  }
-
   async refresh(showErrors = false): Promise<void> {
     if (this.disposed) {
       return;
@@ -90,10 +69,9 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     const generation = ++this.refreshGeneration;
     if (!this.isEnabled()) {
       this.comparisonCommit = undefined;
-      this.changes.resourceStates = [];
       this.branchChanges.clear();
-      this.sourceControl.quickDiffProvider = undefined;
-      this.updateStatusBar('off');
+      this.baseName = undefined;
+      this.treeChanged();
       this.fireOpenOriginals();
       this.clearVisibleDecorations();
       return;
@@ -114,11 +92,9 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
       this.baseName = baseName;
       this.comparisonCommit = comparisonCommit;
       this.scope = scope;
-      this.sourceControl.quickDiffProvider = scope === 'all' ? this : undefined;
       this.branchChanges.clear();
       branchChanges.forEach(change => this.branchChanges.set(change.path, change));
-      this.changes.resourceStates = branchChanges.map(change => this.resourceState(change));
-      this.updateStatusBar(this.baseName);
+      this.treeChanged();
       this.fireOpenOriginals();
       await this.decorateVisibleEditors();
     } catch (error) {
@@ -126,10 +102,9 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
         return;
       }
       this.comparisonCommit = undefined;
-      this.changes.resourceStates = [];
       this.branchChanges.clear();
-      this.sourceControl.quickDiffProvider = undefined;
-      this.updateStatusBar('unavailable');
+      this.baseName = undefined;
+      this.treeChanged();
       this.clearVisibleDecorations();
       if (showErrors) {
         void vscode.window.showErrorMessage(`Branch Diff: ${errorMessage(error)}`);
@@ -268,7 +243,22 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
       clearTimeout(this.refreshTimer);
     }
     Object.values(this.decorationTypes ?? {}).forEach(type => type.dispose());
-    this.sourceControl.dispose();
+  }
+
+  get changes(): readonly BranchChange[] {
+    return [...this.branchChanges.values()];
+  }
+
+  get comparisonLabel(): string {
+    return this.baseName ?? (this.isEnabled() ? 'unavailable' : 'off');
+  }
+
+  get scopeLabel(): string {
+    return scopeLabel(this.scope);
+  }
+
+  uriFor(change: BranchChange): vscode.Uri {
+    return vscode.Uri.file(path.join(this.root, ...change.path.split('/')));
   }
 
   private ensureDecorationTypes(): Record<BranchChangeKind, vscode.TextEditorDecorationType> {
@@ -318,39 +308,6 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
     Object.values(types).forEach(type => editor.setDecorations(type, []));
   }
 
-  private resourceState(change: BranchChange): vscode.SourceControlResourceState {
-    const uri = vscode.Uri.file(path.join(this.root, ...change.path.split('/')));
-    const label = statusLabel(change.status);
-    return {
-      resourceUri: uri,
-      command: {
-        command: 'branchDiff.openChange',
-        title: 'Open branch change',
-        arguments: [uri]
-      },
-      decorations: {
-        tooltip: label,
-        strikeThrough: change.status === 'D',
-        faded: change.status === 'D'
-      }
-    };
-  }
-
-  private updateStatusBar(base: string): void {
-    this.sourceControl.statusBarCommands = [
-      {
-        command: 'branchDiff.chooseBase',
-        title: `$(git-compare) Base: ${base}`,
-        tooltip: 'Choose the branch used by Branch Diff'
-      },
-      {
-        command: 'branchDiff.chooseScope',
-        title: `$(filter) ${scopeLabel(this.scope)}`,
-        tooltip: 'Choose which changes Branch Diff includes'
-      }
-    ];
-  }
-
   private relativePath(uri: vscode.Uri): string {
     return path.relative(this.root, uri.fsPath).split(path.sep).join('/');
   }
@@ -380,22 +337,94 @@ class BranchRepository implements vscode.Disposable, vscode.QuickDiffProvider {
   }
 }
 
+type BranchDiffTreeElement =
+  | { kind: 'repository'; repository: BranchRepository }
+  | { kind: 'change'; repository: BranchRepository; change: BranchChange };
+
+class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeElement>, vscode.Disposable {
+  private readonly changed = new vscode.EventEmitter<BranchDiffTreeElement | undefined>();
+  readonly onDidChangeTreeData = this.changed.event;
+
+  constructor(private readonly repositories: readonly BranchRepository[]) {}
+
+  refresh(): void {
+    this.changed.fire(undefined);
+  }
+
+  getTreeItem(element: BranchDiffTreeElement): vscode.TreeItem {
+    if (element.kind === 'repository') {
+      const item = new vscode.TreeItem(
+        path.basename(element.repository.root),
+        vscode.TreeItemCollapsibleState.Expanded
+      );
+      item.description = `vs ${element.repository.comparisonLabel} • ${element.repository.scopeLabel}`;
+      item.iconPath = new vscode.ThemeIcon('repo', new vscode.ThemeColor('branchDiff.accent'));
+      item.contextValue = 'branchDiff.repository';
+      return item;
+    }
+
+    const { repository, change } = element;
+    const uri = repository.uriFor(change);
+    const item = new vscode.TreeItem(path.basename(change.path), vscode.TreeItemCollapsibleState.None);
+    const parent = path.posix.dirname(change.path);
+    item.description = `${parent === '.' ? '' : `${parent} • `}${statusLabel(change.status).toUpperCase()}`;
+    item.tooltip = new vscode.MarkdownString(
+      `**Branch comparison**  \n${change.path}  \n${statusLabel(change.status)} relative to **${repository.comparisonLabel}**`
+    );
+    item.iconPath = new vscode.ThemeIcon(statusIcon(change.status), new vscode.ThemeColor(statusColor(change.status)));
+    item.command = {
+      command: 'branchDiff.openChange',
+      title: 'Open branch comparison',
+      arguments: [uri]
+    };
+    item.contextValue = 'branchDiff.change';
+    return item;
+  }
+
+  getChildren(element?: BranchDiffTreeElement): BranchDiffTreeElement[] {
+    if (element?.kind === 'change') {
+      return [];
+    }
+    if (element?.kind === 'repository') {
+      return element.repository.changes.map(change => ({ kind: 'change', repository: element.repository, change }));
+    }
+    if (this.repositories.length === 1) {
+      const repository = this.repositories[0];
+      return repository.changes.map(change => ({ kind: 'change', repository, change }));
+    }
+    return this.repositories.map(repository => ({ kind: 'repository', repository }));
+  }
+
+  dispose(): void {
+    this.changed.dispose();
+  }
+}
+
 class BranchDiffController implements vscode.Disposable, vscode.TextDocumentContentProvider {
   private readonly repositories: BranchRepository[] = [];
   private readonly disposables: vscode.Disposable[] = [];
   private readonly contentChanged = new vscode.EventEmitter<vscode.Uri>();
+  private readonly treeProvider = new BranchDiffTreeProvider(this.repositories);
+  private treeView: vscode.TreeView<BranchDiffTreeElement> | undefined;
   readonly onDidChange = this.contentChanged.event;
 
   async start(context: vscode.ExtensionContext): Promise<void> {
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
       const root = await findRepositoryRoot(folder.uri.fsPath);
       if (root && !this.repositories.some(repository => repository.root === root)) {
-        this.repositories.push(new BranchRepository(root, folder, this.contentChanged));
+        this.repositories.push(new BranchRepository(root, folder, this.contentChanged, () => this.updateTree()));
       }
     }
 
+    this.treeView = vscode.window.createTreeView('branchDiff.changes', {
+      treeDataProvider: this.treeProvider,
+      showCollapseAll: this.repositories.length > 1
+    });
+    this.treeView.message = 'Branch comparison — separate from uncommitted Git changes';
+
     this.disposables.push(
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this),
+      this.treeView,
       vscode.commands.registerCommand('branchDiff.refresh', () => this.forSelected(repository => repository.refresh(true))),
       vscode.commands.registerCommand('branchDiff.chooseBase', () => this.forSelected(repository => repository.chooseBase())),
       vscode.commands.registerCommand('branchDiff.chooseScope', () => this.forSelected(repository => repository.chooseScope())),
@@ -438,6 +467,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
   dispose(): void {
     this.repositories.forEach(repository => repository.dispose());
     this.disposables.forEach(disposable => disposable.dispose());
+    this.treeProvider.dispose();
     this.contentChanged.dispose();
   }
 
@@ -448,8 +478,13 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     return uri ? this.repositories.find(repository => repository.owns(uri)) : undefined;
   }
 
+  private selectedTreeRepository(): BranchRepository | undefined {
+    const selected = this.treeView?.selection[0];
+    return selected?.repository;
+  }
+
   private async forSelected(action: (repository: BranchRepository) => Promise<void>): Promise<void> {
-    const repository = this.repositoryFor();
+    const repository = this.selectedTreeRepository() ?? this.repositoryFor();
     if (repository) {
       await action(repository);
     } else if (this.repositories.length === 1) {
@@ -463,6 +498,26 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     await Promise.all(this.repositories.map(repository => repository.refresh()));
   }
 
+  private updateTree(): void {
+    this.treeProvider.refresh();
+    if (!this.treeView) {
+      return;
+    }
+    if (this.repositories.length === 1) {
+      const repository = this.repositories[0];
+      this.treeView.description = `vs ${repository.comparisonLabel} • ${repository.scopeLabel}`;
+      this.treeView.badge = repository.changes.length
+        ? { value: repository.changes.length, tooltip: 'Files changed on this branch' }
+        : undefined;
+    } else {
+      const changeCount = this.repositories.reduce((total, repository) => total + repository.changes.length, 0);
+      this.treeView.description = `${this.repositories.length} repositories`;
+      this.treeView.badge = changeCount
+        ? { value: changeCount, tooltip: 'Files changed across branches' }
+        : undefined;
+    }
+  }
+
   private async setAutomaticBase(): Promise<void> {
     await this.forSelected(async repository => {
       await vscode.workspace.getConfiguration(CONFIG_SECTION, repository.workspaceFolder.uri)
@@ -472,7 +527,9 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
   }
 
   private async toggle(): Promise<void> {
-    const repository = this.repositoryFor() ?? (this.repositories.length === 1 ? this.repositories[0] : undefined);
+    const repository = this.selectedTreeRepository()
+      ?? this.repositoryFor()
+      ?? (this.repositories.length === 1 ? this.repositories[0] : undefined);
     if (!repository) {
       return;
     }
@@ -550,6 +607,16 @@ function scopeLabel(scope: DiffScope): string {
 
 function statusLabel(status: string): string {
   return ({ A: 'Added on branch', D: 'Deleted on branch', M: 'Modified on branch', '?': 'Untracked' } as Record<string, string>)[status] ?? 'Changed on branch';
+}
+
+function statusIcon(status: string): string {
+  return ({ A: 'diff-added', D: 'diff-removed', M: 'diff-modified', '?': 'new-file' } as Record<string, string>)[status]
+    ?? 'diff';
+}
+
+function statusColor(status: string): string {
+  return ({ A: 'branchDiff.added', D: 'branchDiff.deleted', M: 'branchDiff.modified', '?': 'branchDiff.added' } as Record<string, string>)[status]
+    ?? 'branchDiff.accent';
 }
 
 function errorMessage(error: unknown): string {

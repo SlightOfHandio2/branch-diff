@@ -1,7 +1,7 @@
 {
   "name": "branch-diff",
   "displayName": "Branch Diff",
-  "description": "Show all changes on the current branch with VS Code's native gutter diff decorations.",
+  "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
   "version": "0.2.0",
   "publisher": "local",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "vscode": "^1.95.0"
   },
   "categories": [
-    "SCM Providers"
+    "Other"
   ],
   "keywords": [
     "git",
@@ -54,6 +54,67 @@
       {
         "command": "branchDiff.openChange",
         "title": "Open Branch Change"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "branchDiff",
+          "title": "Branch Diff",
+          "icon": "media/branch-diff.svg"
+        }
+      ]
+    },
+    "views": {
+      "branchDiff": [
+        {
+          "id": "branchDiff.changes",
+          "name": "Branch Changes",
+          "icon": "media/branch-diff.svg",
+          "contextualTitle": "Branch Diff"
+        }
+      ]
+    },
+    "colors": [
+      {
+        "id": "branchDiff.accent",
+        "description": "Accent color used by the Branch Diff view.",
+        "defaults": {
+          "dark": "#C586C0",
+          "light": "#8E3A86",
+          "highContrast": "#FF8CF4",
+          "highContrastLight": "#8E3A86"
+        }
+      },
+      {
+        "id": "branchDiff.added",
+        "description": "Color for files added on the branch.",
+        "defaults": {
+          "dark": "#C586C0",
+          "light": "#8E3A86",
+          "highContrast": "#FF8CF4",
+          "highContrastLight": "#8E3A86"
+        }
+      },
+      {
+        "id": "branchDiff.modified",
+        "description": "Color for files modified on the branch.",
+        "defaults": {
+          "dark": "#D7BA7D",
+          "light": "#8A6200",
+          "highContrast": "#FFE28A",
+          "highContrastLight": "#725000"
+        }
+      },
+      {
+        "id": "branchDiff.deleted",
+        "description": "Color for files deleted on the branch.",
+        "defaults": {
+          "dark": "#F48771",
+          "light": "#B52A20",
+          "highContrast": "#FF9B89",
+          "highContrastLight": "#A51F17"
+        }
       }
     ],
     "configuration": {
@@ -157,21 +218,21 @@
           "when": "false"
         }
       ],
-      "scm/title": [
+      "view/title": [
         {
           "command": "branchDiff.refresh",
           "group": "navigation",
-          "when": "scmProvider == branchDiff"
+          "when": "view == branchDiff.changes"
         },
         {
           "command": "branchDiff.chooseBase",
           "group": "navigation",
-          "when": "scmProvider == branchDiff"
+          "when": "view == branchDiff.changes"
         },
         {
           "command": "branchDiff.chooseScope",
           "group": "navigation",
-          "when": "scmProvider == branchDiff"
+          "when": "view == branchDiff.changes"
         }
       ]
     }

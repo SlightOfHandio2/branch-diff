@@ -6,6 +6,8 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ### Added
 
+- A dedicated Branch Diff Activity Bar view, separate from normal Source Control changes.
+- Colored branch-status icons, explicit branch labels, and a comparison banner in the new view.
 - Per-branch comparison-base mappings with wildcard support.
 - Configurable colors for separate branch-change markers.
 - Diff scopes for committed-only, committed-plus-staged, and all changes.

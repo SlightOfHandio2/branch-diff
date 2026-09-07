@@ -3,12 +3,12 @@
 [![CI](https://github.com/SlightOfHandio2/branch-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/SlightOfHandio2/branch-diff/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Branch Diff shows everything changed on the current Git branch, including committed work that VS Code's standard working-tree view no longer shows. It compares against the commit where the branch split from its base and integrates with VS Code's Source Control view, editor markers, and diff UI.
+Branch Diff shows everything changed on the current Git branch, including committed work that VS Code's standard working-tree view no longer shows. It compares against the commit where the branch split from its base and presents the results in a dedicated Activity Bar view, alongside distinctive editor markers and the standard diff UI.
 
 ## Features
 
 - Automatically detects the nearest parent branch, including stacked branches.
-- Shows committed, staged, unstaged, and untracked changes in one Source Control group.
+- Shows committed, staged, unstaged, and untracked changes in a dedicated Branch Diff view.
 - Switches between committed-only, committed-plus-staged, and complete diff scopes.
 - Maps branch patterns such as `feature/*` to configured base branches.
 - Adds customizable branch-change colors distinct from normal working-tree decorations.
@@ -30,7 +30,7 @@ Run `npm test` to compile and test the extension, or `npm run package` to create
 
 ## Usage
 
-The extension starts enabled. Click **Base: …** in the status bar or run **Branch Diff: Choose Comparison Branch** to select a different base. Choose **Automatic** to return to parent-branch detection.
+The extension starts enabled. Open the distinctive **Branch Diff** tab in the Activity Bar. Use its title-bar controls or run **Branch Diff: Choose Comparison Branch** to select a different base. Choose **Automatic** to return to parent-branch detection.
 
 Use the scope control beside the base to choose what the comparison includes:
 
@@ -57,7 +57,7 @@ Other commands:
 - **Branch Diff: Toggle Decorations**
 - **Branch Diff: Use Automatic Base**
 
-Changed files also appear under **Branch Changes** in the Source Control view. Selecting one opens the full diff.
+Changed files appear only under **Branch Changes** in the dedicated Branch Diff view, keeping them separate from uncommitted changes in Source Control. The view uses its own accent colors and explicit branch-status labels. Selecting a file opens the full comparison.
 
 ## How automatic base detection works
 
@@ -86,7 +86,7 @@ You can also map branch names or wildcard patterns to their bases in User Settin
 
 ## Branch marker colors
 
-VS Code uses shared colors for every native Quick Diff provider, so Branch Diff adds its own colored line and overview-ruler markers while preserving the clickable native gutter diff. Customize them in User Settings:
+Branch Diff adds its own colored line and overview-ruler markers instead of reusing VS Code's normal working-tree colors. Customize them in User Settings:
 
 ```json
 "branchDiff.colors": {
@@ -98,7 +98,7 @@ VS Code uses shared colors for every native Quick Diff provider, so Branch Diff 
 
 ## Notes
 
-- VS Code can show more than one quick-diff source. Use the gutter diff selector to switch between normal working-tree changes and **Branch changes** when both apply.
+- Branch Diff's colored editor and overview-ruler markers remain visually separate from VS Code's normal working-tree gutter markers.
 - Nested repositories that are not the workspace root are not discovered in this first version.
 
 ## Contributing and support
