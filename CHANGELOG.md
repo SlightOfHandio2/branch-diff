@@ -15,6 +15,7 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ### Fixed
 
+- Keep branch-change markers in the glyph margin so they never overlap code or indentation guides.
 - Refresh branch changes immediately after checking out another branch.
 - Prevent an older asynchronous refresh from replacing newer results.
 

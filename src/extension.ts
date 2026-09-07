@@ -271,19 +271,18 @@ class BranchRepository implements vscode.Disposable {
     Object.values(this.decorationTypes ?? {}).forEach(type => type.dispose());
     this.decorationColorSignature = signature;
     this.decorationTypes = {
-      added: this.createDecorationType(colors.added),
-      modified: this.createDecorationType(colors.modified),
-      deleted: this.createDecorationType(colors.deleted)
+      added: this.createDecorationType('added', colors.added),
+      modified: this.createDecorationType('modified', colors.modified),
+      deleted: this.createDecorationType('deleted', colors.deleted)
     };
     return this.decorationTypes;
   }
 
-  private createDecorationType(color: string): vscode.TextEditorDecorationType {
+  private createDecorationType(kind: BranchChangeKind, color: string): vscode.TextEditorDecorationType {
     return vscode.window.createTextEditorDecorationType({
       isWholeLine: true,
-      borderColor: color,
-      borderStyle: 'solid',
-      borderWidth: '0 0 0 3px',
+      gutterIconPath: branchMarkerUri(kind, color),
+      gutterIconSize: '50%',
       overviewRulerColor: color,
       overviewRulerLane: vscode.OverviewRulerLane.Left,
       rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed
@@ -617,6 +616,16 @@ function statusIcon(status: string): string {
 function statusColor(status: string): string {
   return ({ A: 'branchDiff.added', D: 'branchDiff.deleted', M: 'branchDiff.modified', '?': 'branchDiff.added' } as Record<string, string>)[status]
     ?? 'branchDiff.accent';
+}
+
+function branchMarkerUri(kind: BranchChangeKind, color: string): vscode.Uri {
+  const shape = {
+    added: '<path d="M6 1 11 6 6 11 1 6Z"/>',
+    modified: '<circle cx="6" cy="6" r="4.25" fill="none" stroke-width="2.5"/>',
+    deleted: '<path d="M1 4.5h10v3H1z"/>'
+  }[kind];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="${color}" stroke="${color}">${shape}</svg>`;
+  return vscode.Uri.parse(`data:image/svg+xml,${encodeURIComponent(svg)}`);
 }
 
 function errorMessage(error: unknown): string {

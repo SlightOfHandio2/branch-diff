@@ -86,7 +86,7 @@ You can also map branch names or wildcard patterns to their bases in User Settin
 
 ## Branch marker colors
 
-Branch Diff adds its own colored line and overview-ruler markers instead of reusing VS Code's normal working-tree colors. Customize them in User Settings:
+Branch Diff adds compact colored glyph-margin and overview-ruler markers instead of reusing VS Code's normal working-tree colors. The markers stay outside the code area so they do not compete with indentation or text. Customize them in User Settings:
 
 ```json
 "branchDiff.colors": {
