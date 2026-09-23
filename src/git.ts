@@ -131,6 +131,26 @@ export async function mergeBase(root: string, base: string): Promise<string> {
   return (await git(root, ['merge-base', base, 'HEAD'])).trim();
 }
 
+export async function isCurrentBranch(root: string, branch: string): Promise<boolean> {
+  let current: string;
+  try {
+    current = (await git(root, ['symbolic-ref', '--quiet', 'HEAD'])).trim();
+  } catch {
+    // A detached HEAD is a commit, not a checked-out comparison branch.
+    return false;
+  }
+  if (!current) {
+    return false;
+  }
+
+  try {
+    const comparison = (await git(root, ['rev-parse', '--symbolic-full-name', branch])).trim();
+    return comparison === current;
+  } catch {
+    return false;
+  }
+}
+
 export async function listRefs(root: string): Promise<string[]> {
   const output = await git(root, [
     'for-each-ref',

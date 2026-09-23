@@ -9,6 +9,7 @@ import {
   fileAtIndex,
   findRepositoryRoot,
   git,
+  isCurrentBranch,
   listChanges,
   listLineChanges,
   listRefs,
@@ -85,7 +86,9 @@ class BranchRepository implements vscode.Disposable {
       const exclude = this.configuration().get<string[]>('exclude', []);
       const baseName = await resolveBase(this.root, configured, strategy, branchBases);
       const comparisonCommit = await mergeBase(this.root, baseName);
-      const branchChanges = await listChanges(this.root, comparisonCommit, scope, exclude);
+      const branchChanges = await isCurrentBranch(this.root, baseName)
+        ? []
+        : await listChanges(this.root, comparisonCommit, scope, exclude);
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
       }

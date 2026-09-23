@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import test from 'node:test';
 import {
   fileAtCommit,
+  isCurrentBranch,
   listChanges,
   mappedBase,
   mergeBase,
@@ -82,6 +83,21 @@ test('configured branch base mappings are used before automatic detection', asyn
   run(root, 'switch', '-c', 'feature/login');
 
   assert.equal(await resolveBase(root, '', 'nearestAncestor', { 'feature/*': 'develop' }), 'develop');
+});
+
+test('current branch is recognized as the comparison branch', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  assert.equal(await isCurrentBranch(root, 'main'), true);
+  assert.equal(await isCurrentBranch(root, 'refs/heads/main'), true);
+  assert.equal(await isCurrentBranch(root, 'HEAD'), true);
+
+  run(root, 'switch', '-c', 'feature');
+  assert.equal(await isCurrentBranch(root, 'main'), false);
+
+  run(root, 'switch', '--detach');
+  assert.equal(await isCurrentBranch(root, 'feature'), false);
 });
 
 test('branch changes include committed, working-tree, and untracked files', async t => {
