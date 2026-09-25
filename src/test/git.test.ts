@@ -8,6 +8,7 @@ import {
   fileAtCommit,
   isCurrentBranch,
   listChanges,
+  listLineChanges,
   mappedBase,
   mergeBase,
   parseLineChanges,
@@ -180,6 +181,44 @@ test('baseline content is returned without changing whitespace', async t => {
 
   assert.equal(await fileAtCommit(root, head, 'existing.txt'), 'baseline\n');
   assert.equal(await fileAtCommit(root, head, 'not-there.txt'), '');
+});
+
+test('renames retain original paths across scopes and only mark actual edits', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const originalPath = 'old name [1].txt';
+  const destination = 'new name [2].txt';
+  const content = Array.from({ length: 20 }, (_, i) => `original line ${i + 1}\n`).join('');
+  writeFileSync(path.join(root, originalPath), content);
+  run(root, 'add', '.');
+  run(root, 'commit', '-m', 'rename baseline');
+  const base = run(root, 'rev-parse', 'HEAD');
+  run(root, 'mv', originalPath, destination);
+  const renamed = [{ status: 'R', path: destination, originalPath }];
+  assert.deepEqual(await listChanges(root, base, 'committed'), []);
+  for (const scope of ['staged', 'all'] as const) {
+    assert.deepEqual(await listChanges(root, base, scope), renamed);
+    assert.deepEqual(await listLineChanges(root, base, destination, scope, originalPath), []);
+  }
+  writeFileSync(path.join(root, destination), content.replace('original line 10\n', 'edited line ten\n'));
+  assert.deepEqual(await listLineChanges(root, base, destination, 'staged', originalPath), []);
+  const markers = [{ startLine: 10, lineCount: 1, kind: 'modified' }];
+  assert.deepEqual(await listLineChanges(root, base, destination, 'all', originalPath), markers);
+  run(root, 'add', '.');
+  run(root, 'commit', '-m', 'rename and edit');
+  for (const scope of ['committed', 'staged', 'all'] as const) {
+    assert.deepEqual(await listChanges(root, base, scope), renamed);
+    assert.deepEqual(await listLineChanges(root, base, destination, scope, originalPath), markers);
+  }
+  assert.equal(await fileAtCommit(root, base, originalPath), content);
+  assert.deepEqual(await listChanges(root, base, 'all', [destination.replace('[2]', '*')]), []);
+  writeFileSync(path.join(root, originalPath), 'a different file at the old path\n');
+  run(root, 'add', '.');
+  // Git now sees a modified original and an added destination, not a rename.
+  assert.deepEqual(await listChanges(root, base, 'all'), [
+    { status: 'A', path: destination },
+    { status: 'M', path: originalPath }
+  ]);
 });
 
 test('unified diff hunks become added, modified, and deleted line markers', () => {

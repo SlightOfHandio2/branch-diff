@@ -6,6 +6,8 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ### Added
 
+- Git rename detection across diff scopes, with old-to-new paths, original-file comparisons, and line markers limited to edits within renamed files.
+
 - Explicit loading, empty, disabled, missing-repository, and comparison-error states, with recovery actions in the Branch Diff view.
 
 - A dedicated Branch Diff Activity Bar view, separate from normal Source Control changes.

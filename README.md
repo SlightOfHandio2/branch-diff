@@ -9,6 +9,7 @@ Branch Diff shows everything changed on the current Git branch, including commit
 
 - Automatically detects the nearest parent branch, including stacked branches.
 - Shows committed, staged, unstaged, and untracked changes in a dedicated Branch Diff view.
+- Shows Git-detected renames as a single `old → new` entry, with diffs against the original file and markers for actual edits.
 - Switches between committed-only, committed-plus-staged, and complete diff scopes.
 - Maps branch patterns such as `feature/*` to configured base branches.
 - Adds customizable branch-change colors distinct from normal working-tree decorations.
@@ -99,6 +100,8 @@ Branch Diff adds compact colored glyph-margin and overview-ruler markers instead
 ```
 
 ## Notes
+
+- Rename detection follows Git's similarity matching for tracked files. Stage a moved file to let Git detect its rename; an untracked destination remains separate. Exclusions match the destination path of a rename.
 
 - Branch Diff's colored editor and overview-ruler markers remain visually separate from VS Code's normal working-tree gutter markers.
 - Nested repositories that are not the workspace root are not discovered in this first version.

@@ -6,6 +6,7 @@ const execFileAsync = promisify(execFile);
 export interface BranchChange {
   path: string;
   status: string;
+  originalPath?: string;
 }
 
 export interface BranchLineChange {
@@ -170,8 +171,15 @@ export async function listChanges(
   const output = await git(root, diffArgs(scope, comparisonCommit, ['--name-status', '-z']));
   const fields = output.split('\0').filter(Boolean);
   const changes: BranchChange[] = [];
-  for (let i = 0; i + 1 < fields.length; i += 2) {
-    changes.push({ status: fields[i][0], path: fields[i + 1] });
+  for (let i = 0; i + 1 < fields.length;) {
+    const status = fields[i++][0];
+    const firstPath = fields[i++];
+    if (status === 'R' || status === 'C') {
+      const destination = fields[i++];
+      if (destination) changes.push({ status, path: destination, originalPath: firstPath });
+    } else {
+      changes.push({ status, path: firstPath });
+    }
   }
 
   if (scope === 'all') {
@@ -228,22 +236,28 @@ export async function listLineChanges(
   root: string,
   comparisonCommit: string,
   relativePath: string,
-  scope: DiffScope = 'all'
+  scope: DiffScope = 'all',
+  originalPath?: string
 ): Promise<BranchLineChange[]> {
   const output = await git(root, diffArgs(scope, comparisonCommit, [
     '--unified=0',
     '--no-ext-diff'
-  ], relativePath));
-  return parseLineChanges(output);
+  ], originalPath ? [originalPath, relativePath] : [relativePath]));
+  // The old path may have been recreated. Only the rename patch belongs to
+  // the destination editor; ignore any separate addition at the old path.
+  const patch = originalPath
+    ? output.split(/^diff --git /m).filter(section => /^rename from /m.test(section)).join('\n')
+    : output;
+  return parseLineChanges(patch);
 }
 
 function diffArgs(
   scope: DiffScope,
   comparisonCommit: string,
   options: string[],
-  relativePath?: string
+  relativePaths: string[] = []
 ): string[] {
-  const args = ['diff', ...options, '--no-renames'];
+  const args = ['diff', ...options, '--find-renames'];
   if (scope === 'staged') {
     args.push('--cached', comparisonCommit);
   } else if (scope === 'committed') {
@@ -252,9 +266,7 @@ function diffArgs(
     args.push(comparisonCommit);
   }
   args.push('--');
-  if (relativePath) {
-    args.push(relativePath);
-  }
+  args.push(...relativePaths.map(file => `:(literal)${file}`));
   return args;
 }
 

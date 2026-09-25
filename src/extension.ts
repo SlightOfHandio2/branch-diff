@@ -196,7 +196,8 @@ class BranchRepository implements vscode.Disposable {
     if (!this.comparisonCommit || !this.isEnabled() || !this.owns(uri)) {
       return;
     }
-    const original = makeOriginalUri(this.root, this.relativePath(uri));
+    const change = this.branchChanges.get(this.relativePath(uri));
+    const original = makeOriginalUri(this.root, change?.originalPath ?? this.relativePath(uri));
     let current: vscode.Uri;
     if (this.scope === 'committed') {
       current = makeOriginalUri(this.root, this.relativePath(uri), false, 'HEAD');
@@ -232,7 +233,7 @@ class BranchRepository implements vscode.Disposable {
     if (change.status === '?' || (change.status === 'A' && scope === 'all')) {
       lineChanges = [{ startLine: 1, lineCount: editor.document.lineCount, kind: 'added' }];
     } else {
-      lineChanges = await listLineChanges(this.root, comparisonCommit, relativePath, scope);
+      lineChanges = await listLineChanges(this.root, comparisonCommit, relativePath, scope, change.originalPath);
     }
     if (this.disposed || comparisonCommit !== this.comparisonCommit || scope !== this.scope) {
       return;
@@ -424,11 +425,13 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
 
     const { repository, change } = element;
     const uri = repository.uriFor(change);
-    const item = new vscode.TreeItem(path.basename(change.path), vscode.TreeItemCollapsibleState.None);
+    const item = new vscode.TreeItem(change.originalPath
+      ? `${change.originalPath} → ${change.path}`
+      : path.basename(change.path), vscode.TreeItemCollapsibleState.None);
     const parent = path.posix.dirname(change.path);
     item.description = `${parent === '.' ? '' : `${parent} • `}${statusLabel(change.status).toUpperCase()}`;
     item.tooltip = new vscode.MarkdownString(
-      `**Branch comparison**  \n${change.path}  \n${statusLabel(change.status)} relative to **${repository.comparisonLabel}**`
+      `**Branch comparison**  \n${change.originalPath ? `${change.originalPath} → ` : ''}${change.path}  \n${statusLabel(change.status)} relative to **${repository.comparisonLabel}**`
     );
     item.iconPath = new vscode.ThemeIcon(statusIcon(change.status), new vscode.ThemeColor(statusColor(change.status)));
     item.command = {
@@ -694,16 +697,16 @@ function scopeLabel(scope: DiffScope): string {
 }
 
 function statusLabel(status: string): string {
-  return ({ A: 'Added on branch', D: 'Deleted on branch', M: 'Modified on branch', '?': 'Untracked' } as Record<string, string>)[status] ?? 'Changed on branch';
+  return ({ A: 'Added on branch', D: 'Deleted on branch', M: 'Modified on branch', R: 'Renamed on branch', '?': 'Untracked' } as Record<string, string>)[status] ?? 'Changed on branch';
 }
 
 function statusIcon(status: string): string {
-  return ({ A: 'diff-added', D: 'diff-removed', M: 'diff-modified', '?': 'new-file' } as Record<string, string>)[status]
+  return ({ A: 'diff-added', D: 'diff-removed', M: 'diff-modified', R: 'diff-renamed', '?': 'new-file' } as Record<string, string>)[status]
     ?? 'diff';
 }
 
 function statusColor(status: string): string {
-  return ({ A: 'branchDiff.added', D: 'branchDiff.deleted', M: 'branchDiff.modified', '?': 'branchDiff.added' } as Record<string, string>)[status]
+  return ({ A: 'branchDiff.added', D: 'branchDiff.deleted', M: 'branchDiff.modified', R: 'branchDiff.modified', '?': 'branchDiff.added' } as Record<string, string>)[status]
     ?? 'branchDiff.accent';
 }
 
