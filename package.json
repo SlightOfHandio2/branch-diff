@@ -2,7 +2,7 @@
   "name": "branch-diff",
   "displayName": "Branch Diff",
   "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "local",
   "license": "MIT",
   "repository": {
@@ -127,7 +127,10 @@
       "properties": {
         "branchDiff.viewLayout": {
           "type": "string",
-          "enum": ["flat", "tree"],
+          "enum": [
+            "flat",
+            "tree"
+          ],
           "default": "flat",
           "scope": "window",
           "description": "Display changed files as a flat list or a folder tree."

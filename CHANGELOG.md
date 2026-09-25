@@ -2,7 +2,7 @@
 
 Notable changes to Branch Diff are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.4.0
 
 ### Added
 
