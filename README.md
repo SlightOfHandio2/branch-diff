@@ -96,6 +96,8 @@ You can also map branch names or wildcard patterns to their bases in User Settin
 
 ## Branch marker colors
 
+Markers are aligned to the current editor text, including unsaved edits. In committed/staged scopes, later edits can move a marker but do not become scoped changes themselves. Markers for lines that have since been replaced or deleted are hidden. While typing, markers are cleared and recalculated after a short pause.
+
 Branch Diff adds compact colored glyph-margin and overview-ruler markers instead of reusing VS Code's normal working-tree colors. The markers stay outside the code area so they do not compete with indentation or text. Customize them in User Settings:
 
 ```json

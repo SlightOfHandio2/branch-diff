@@ -1,4 +1,6 @@
 import * as path from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { alignLineChanges } from './lineMapping';
 import * as vscode from 'vscode';
 import {
   AutomaticBaseStrategy,
@@ -231,13 +233,21 @@ class BranchRepository implements vscode.Disposable {
 
     const comparisonCommit = this.comparisonCommit;
     const scope = this.scope;
+    const generation = this.refreshGeneration;
+    const version = editor.document.version;
     let lineChanges: BranchLineChange[];
     if (change.status === '?' || (change.status === 'A' && scope === 'all')) {
       lineChanges = [{ startLine: 1, lineCount: editor.document.lineCount, kind: 'added' }];
     } else {
       lineChanges = await listLineChanges(this.root, comparisonCommit, relativePath, scope, change.originalPath);
+      const source = scope === 'committed'
+        ? await fileAtCommit(this.root, 'HEAD', relativePath)
+        : scope === 'staged' ? await fileAtIndex(this.root, relativePath)
+        : await readFile(editor.document.uri.fsPath, 'utf8');
+      lineChanges = await alignLineChanges(lineChanges, source, editor.document.getText());
     }
-    if (this.disposed || comparisonCommit !== this.comparisonCommit || scope !== this.scope) {
+    if (this.disposed || !this.isEnabled() || generation !== this.refreshGeneration
+      || version !== editor.document.version || comparisonCommit !== this.comparisonCommit || scope !== this.scope) {
       return;
     }
 
@@ -270,6 +280,13 @@ class BranchRepository implements vscode.Disposable {
 
   get scopeLabel(): string {
     return scopeLabel(this.scope);
+  }
+
+  documentChanged(): void {
+    this.refreshGeneration++;
+    // Remove stale markers immediately; recompute after typing settles.
+    this.clearVisibleDecorations();
+    this.scheduleRefresh();
   }
 
   get baseExplanation(): string {
@@ -580,6 +597,9 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
       vscode.commands.registerCommand('branchDiff.toggle', () => this.toggle()),
       vscode.commands.registerCommand('branchDiff.openChange', (uri: vscode.Uri) => this.repositoryFor(uri)?.openChange(uri)),
       vscode.workspace.onDidSaveTextDocument(document => this.repositoryFor(document.uri)?.scheduleRefresh()),
+      vscode.workspace.onDidChangeTextDocument(event => {
+        if (event.contentChanges.length) this.repositoryFor(event.document.uri)?.documentChanged();
+      }),
       vscode.window.onDidChangeVisibleTextEditors(editors => {
         for (const editor of editors) {
           void this.repositoryFor(editor.document.uri)?.decorate(editor);

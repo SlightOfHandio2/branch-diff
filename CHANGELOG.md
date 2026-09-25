@@ -23,6 +23,8 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ### Fixed
 
+- Align scoped markers with working-editor text, including unsaved edits, and hide markers for scoped lines that no longer survive. Discard stale decoration results after edits or refreshes.
+
 - Comparing against the current branch now respects the selected scope instead of hiding staged, unstaged, and untracked changes.
 
 - Keep branch-change markers in the glyph margin so they never overlap code or indentation guides.
