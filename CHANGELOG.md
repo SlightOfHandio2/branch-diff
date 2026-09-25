@@ -6,6 +6,8 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ### Added
 
+- A comparison-base row explaining the selected ref, selection reason, and exact merge-base commit, with click-through to the base picker.
+
 - Flat/folder-tree layout toggle with per-file added/deleted line counts, folder subtotals, and repository/workspace totals. Binary files and unavailable statistics are labelled separately.
 
 - Git rename detection across diff scopes, with old-to-new paths, original-file comparisons, and line markers limited to edits within renamed files.
@@ -20,6 +22,8 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 - Glob-based file exclusions across all diff scopes.
 
 ### Fixed
+
+- Comparing against the current branch now respects the selected scope instead of hiding staged, unstaged, and untracked changes.
 
 - Keep branch-change markers in the glyph margin so they never overlap code or indentation guides.
 - Refresh branch changes immediately after checking out another branch.

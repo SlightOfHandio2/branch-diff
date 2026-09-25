@@ -42,6 +42,8 @@ Use the scope control beside the base to choose what the comparison includes:
 
 The choice is saved per workspace in `branchDiff.scope`.
 
+Choosing the current branch (or `HEAD`) compares against its latest commit. **Committed only** is empty, **Committed + staged** shows staged changes, and **Everything** shows staged, unstaged, and untracked changes.
+
 Use **Branch Diff: Toggle Flat / Folder Tree** or the tree icon in the view title to switch layouts. The choice is saved in `branchDiff.viewLayout` (default: `flat`). File rows show added/deleted line counts; folder rows and the view heading show totals for the visible comparison after exclusions. Binary files are counted separately, and unreadable untracked files show statistics as unavailable.
 
 Exclude generated or noisy files with glob patterns. Patterns without a slash match a filename at any depth; a leading slash anchors the match to the repository root:
@@ -66,6 +68,8 @@ Changed files appear only under **Branch Changes** in the dedicated Branch Diff 
 When there are no files to show, the view explains whether the comparison is empty, Branch Diff is disabled, no repository was found, or the comparison failed. Use the actions in the view to choose a base or scope, enable Branch Diff, open a repository folder, or retry. Hover over a failed comparison message for the error details. In multi-repository workspaces, each repository shows its own state and recovery actions.
 
 ## How automatic base detection works
+
+The **Comparison base** row shows the selected ref and the short merge-base commit ID. Hover over it to see why that base was chosen and the full comparison commit. Click it to choose another base. The explanation distinguishes explicit settings, matching branch mappings, nearest ancestors, and default/previous-commit fallbacks. It is available in both layouts, including empty comparisons.
 
 By default, Branch Diff finds the closest local branch whose tip is an ancestor of the current branch. Given `main → A → B → C`, this selects `B` from `C`, `A` from `B`, and `main` from `A`.
 

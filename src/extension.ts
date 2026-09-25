@@ -10,13 +10,12 @@ import {
   fileAtIndex,
   findRepositoryRoot,
   git,
-  isCurrentBranch,
   listChanges,
   listLineChanges,
   listRefs,
   mergeBase,
   pathMatchesPattern,
-  resolveBase
+  resolveBaseDetails
 } from './git';
 
 const SCHEME = 'branch-diff';
@@ -40,6 +39,7 @@ class BranchRepository implements vscode.Disposable {
   readonly label = 'Branch changes';
   private comparisonCommit: string | undefined;
   private baseName: string | undefined;
+  private baseReason: string | undefined;
   private scope: DiffScope = 'all';
   private readonly branchChanges = new Map<string, BranchChange>();
   private decorationTypes: Record<BranchChangeKind, vscode.TextEditorDecorationType> | undefined;
@@ -89,16 +89,16 @@ class BranchRepository implements vscode.Disposable {
       const branchBases = this.configuration().get<Record<string, string>>('branchBases', {});
       const scope = this.configuration().get<DiffScope>('scope', 'all');
       const exclude = this.configuration().get<string[]>('exclude', []);
-      const baseName = await resolveBase(this.root, configured, strategy, branchBases);
+      const selection = await resolveBaseDetails(this.root, configured, strategy, branchBases);
+      const baseName = selection.ref;
       const comparisonCommit = await mergeBase(this.root, baseName);
-      const branchChanges = await isCurrentBranch(this.root, baseName)
-        ? []
-        : await listChanges(this.root, comparisonCommit, scope, exclude);
+      const branchChanges = await listChanges(this.root, comparisonCommit, scope, exclude);
       if (branchChanges.length) await addChangeStats(this.root, comparisonCommit, scope, branchChanges);
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
       }
       this.baseName = baseName;
+      this.baseReason = selection.reason;
       this.comparisonCommit = comparisonCommit;
       this.scope = scope;
       this.state = 'ready';
@@ -272,6 +272,16 @@ class BranchRepository implements vscode.Disposable {
     return scopeLabel(this.scope);
   }
 
+  get baseExplanation(): string {
+    if (!this.comparisonCommit) return this.description;
+    return `Comparison base: ${this.comparisonLabel}\n${this.baseReason}\nComparing from merge-base ${this.comparisonCommit}.\nScope: ${this.scopeLabel}. The comparison starts at the shared ancestor, not necessarily the base branch's latest commit.`;
+  }
+
+  get baseSummary(): string | undefined {
+    return this.comparisonCommit
+      ? `${this.comparisonLabel} • ${this.comparisonCommit.slice(0, 8)}` : undefined;
+  }
+
   get description(): string {
     if (this.state === 'loading') return 'Loading comparison…';
     if (this.state === 'disabled') return 'Disabled';
@@ -293,7 +303,7 @@ class BranchRepository implements vscode.Disposable {
         { label: 'Choose comparison branch…', icon: 'git-branch', action: 'base' }];
     }
     return [{ label: 'No changes in this comparison', icon: 'check',
-      detail: `No files to show against ${this.comparisonLabel} (${this.scopeLabel}), after exclusions. Comparing a branch with itself shows no changes.` },
+      detail: `No files to show against ${this.comparisonLabel} (${this.scopeLabel}), after exclusions. When comparing with the current branch, committed changes are empty; staged and working-tree changes still follow the selected scope.` },
       { label: 'Choose comparison branch…', icon: 'git-branch', action: 'base' },
       { label: 'Choose diff scope…', icon: 'filter', action: 'scope' }];
   }
@@ -390,6 +400,7 @@ interface StateRow {
 }
 
 type BranchDiffTreeElement =
+  | { kind: 'comparison'; repository: BranchRepository }
   | { kind: 'folder'; repository: BranchRepository; folder: string }
   | { kind: 'state'; repository?: BranchRepository; row: StateRow }
   | { kind: 'repository'; repository: BranchRepository }
@@ -406,6 +417,16 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
   }
 
   getTreeItem(element: BranchDiffTreeElement): vscode.TreeItem {
+    if (element.kind === 'comparison') {
+      const item = new vscode.TreeItem('Comparison base', vscode.TreeItemCollapsibleState.None);
+      item.description = element.repository.baseSummary;
+      item.tooltip = element.repository.baseExplanation;
+      item.iconPath = new vscode.ThemeIcon('git-branch');
+      item.command = { command: 'branchDiff.stateAction', title: 'Choose comparison branch',
+        arguments: [{ kind: 'state', repository: element.repository,
+          row: { label: 'Choose comparison branch', icon: 'git-branch', action: 'base' } }] };
+      return item;
+    }
     if (element.kind === 'folder') {
       const item = new vscode.TreeItem(path.posix.basename(element.folder), vscode.TreeItemCollapsibleState.Expanded);
       item.id = `${element.repository.root}:folder:${element.folder}`;
@@ -428,6 +449,7 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
         vscode.TreeItemCollapsibleState.Expanded
       );
       item.description = element.repository.description;
+      item.tooltip = element.repository.baseExplanation;
       item.iconPath = new vscode.ThemeIcon('repo', new vscode.ThemeColor('branchDiff.accent'));
       item.contextValue = 'branchDiff.repository';
       return item;
@@ -455,7 +477,7 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
 
   getChildren(element?: BranchDiffTreeElement): BranchDiffTreeElement[] {
     if (element?.kind === 'folder') return this.folderChildren(element.repository, element.folder);
-    if (element?.kind === 'change' || element?.kind === 'state') {
+    if (element?.kind === 'change' || element?.kind === 'state' || element?.kind === 'comparison') {
       return [];
     }
     if (element?.kind === 'repository') {
@@ -476,10 +498,11 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
   }
 
   private repositoryChildren(repository: BranchRepository): BranchDiffTreeElement[] {
-    return repository.changes.length
+    const children: BranchDiffTreeElement[] = repository.changes.length
       ? this.layout === 'tree' ? this.folderChildren(repository, '')
         : repository.changes.map(change => ({ kind: 'change', repository, change }))
       : repository.emptyRows.map(row => ({ kind: 'state', repository, row }));
+    return repository.baseSummary ? [{ kind: 'comparison', repository }, ...children] : children;
   }
 
   private get layout(): string {

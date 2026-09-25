@@ -44,26 +44,44 @@ export async function resolveBase(
   strategy: AutomaticBaseStrategy = 'nearestAncestor',
   branchBases: Record<string, string> = {}
 ): Promise<string> {
+  return (await resolveBaseDetails(root, configuredBase, strategy, branchBases)).ref;
+}
+
+export interface BaseSelection {
+  ref: string;
+  reason: string;
+}
+
+export async function resolveBaseDetails(
+  root: string,
+  configuredBase: string,
+  strategy: AutomaticBaseStrategy = 'nearestAncestor',
+  branchBases: Record<string, string> = {}
+): Promise<BaseSelection> {
   if (configuredBase.trim()) {
     await git(root, ['rev-parse', '--verify', `${configuredBase.trim()}^{commit}`]);
-    return configuredBase.trim();
+    return { ref: configuredBase.trim(), reason: 'Explicit comparison base from branchDiff.baseBranch.' };
   }
 
   const current = (await git(root, ['branch', '--show-current'])).trim();
   const mapped = mappedBase(current, branchBases);
   if (mapped) {
     await git(root, ['rev-parse', '--verify', `${mapped}^{commit}`]);
-    return mapped;
+    const pattern = branchBases[current]?.trim() ? current : Object.keys(branchBases)
+      .find(pattern => branchBases[pattern].trim() && matchesBranchPattern(current, pattern));
+    return { ref: mapped, reason: `Branch mapping "${pattern}" matched "${current}".` };
   }
 
   if (strategy === 'nearestAncestor') {
     const nearest = await nearestAncestorBranch(root);
     if (nearest) {
-      return nearest;
+      return { ref: nearest, reason: 'Automatically selected the nearest local ancestor branch. Equal-distance candidates are ordered by name.' };
     }
   }
 
-  return resolveDefaultBranch(root);
+  const selected = await resolveDefaultBranch(root);
+  return { ...selected, reason: (strategy === 'nearestAncestor'
+    ? 'No suitable local ancestor branch was found. ' : 'Repository-default strategy. ') + selected.reason };
 }
 
 export function mappedBase(currentBranch: string, branchBases: Record<string, string>): string | undefined {
@@ -107,7 +125,7 @@ async function nearestAncestorBranch(root: string): Promise<string | undefined> 
     .sort((a, b) => a.distance - b.distance || a.branch.localeCompare(b.branch))[0]?.branch;
 }
 
-async function resolveDefaultBranch(root: string): Promise<string> {
+async function resolveDefaultBranch(root: string): Promise<BaseSelection> {
 
   const candidates: string[] = [];
   try {
@@ -120,7 +138,9 @@ async function resolveDefaultBranch(root: string): Promise<string> {
   for (const candidate of [...new Set(candidates.filter(Boolean))]) {
     try {
       await git(root, ['rev-parse', '--verify', `${candidate}^{commit}`]);
-      return candidate;
+      return { ref: candidate, reason: candidate === candidates[0] && candidate.includes('/')
+        ? 'Selected the remote default branch from origin/HEAD.'
+        : 'Selected the first available conventional default: main, master, develop, development.' };
     } catch {
       // Try the next conventional default branch.
     }
@@ -128,7 +148,7 @@ async function resolveDefaultBranch(root: string): Promise<string> {
 
   // A detached HEAD or single-branch repository still gets a useful baseline.
   await git(root, ['rev-parse', '--verify', 'HEAD^']);
-  return 'HEAD^';
+  return { ref: 'HEAD^', reason: 'No default branch was found; using the previous commit (HEAD^).' };
 }
 
 export async function mergeBase(root: string, base: string): Promise<string> {

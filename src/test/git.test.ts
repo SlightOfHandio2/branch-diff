@@ -14,7 +14,8 @@ import {
   mergeBase,
   parseLineChanges,
   pathMatchesPattern,
-  resolveBase
+  resolveBase,
+  resolveBaseDetails
 } from '../git';
 
 function run(root: string, ...args: string[]): string {
@@ -52,6 +53,31 @@ test('automatic base resolves the nearest branch in a branch stack', async t => 
   assert.equal(await resolveBase(root, ''), 'A');
   run(root, 'switch', 'A');
   assert.equal(await resolveBase(root, ''), 'main');
+});
+
+test('base explanations distinguish explicit, mapped, ancestor and fallback choices', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  run(root, 'switch', '-c', 'feature/test');
+  writeFileSync(path.join(root, 'next.txt'), 'next\n');
+  run(root, 'add', '.');
+  run(root, 'commit', '-m', 'next');
+  assert.match((await resolveBaseDetails(root, 'main')).reason, /Explicit/);
+  const mapped = await resolveBaseDetails(root, '', 'nearestAncestor', { 'feature/*': 'main' });
+  assert.equal(mapped.ref, 'main');
+  assert.match(mapped.reason, /"feature\/\*" matched "feature\/test"/);
+  assert.match((await resolveBaseDetails(root, '')).reason, /nearest local ancestor/);
+  assert.match((await resolveBaseDetails(root, '', 'defaultBranch')).reason, /conventional default/);
+  run(root, 'update-ref', 'refs/remotes/origin/main', 'main');
+  run(root, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+  const remote = await resolveBaseDetails(root, '', 'defaultBranch');
+  assert.equal(remote.ref, 'origin/main');
+  assert.match(remote.reason, /origin\/HEAD/);
+  run(root, 'symbolic-ref', '--delete', 'refs/remotes/origin/HEAD');
+  run(root, 'branch', '-D', 'main');
+  const fallback = await resolveBaseDetails(root, '');
+  assert.equal(fallback.ref, 'HEAD^');
+  assert.match(fallback.reason, /No suitable local ancestor.*previous commit/);
 });
 
 test('repository-default strategy remains available', async t => {
@@ -100,6 +126,28 @@ test('current branch is recognized as the comparison branch', async t => {
 
   run(root, 'switch', '--detach');
   assert.equal(await isCurrentBranch(root, 'feature'), false);
+});
+
+test('comparison with the current branch respects each scope', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(path.join(root, 'staged.txt'), 'staged\n');
+  run(root, 'add', 'staged.txt');
+  writeFileSync(path.join(root, 'existing.txt'), 'working tree\n');
+  writeFileSync(path.join(root, 'untracked.txt'), 'untracked\n');
+  for (const ref of ['main', 'refs/heads/main', 'HEAD']) {
+    const base = await mergeBase(root, ref);
+    assert.equal(base, run(root, 'rev-parse', 'HEAD'));
+    assert.deepEqual(await listChanges(root, base, 'committed'), []);
+    assert.deepEqual(await listChanges(root, base, 'staged'), [
+      { status: 'A', path: 'staged.txt' }
+    ]);
+    assert.deepEqual(await listChanges(root, base, 'all'), [
+      { status: 'M', path: 'existing.txt' },
+      { status: 'A', path: 'staged.txt' },
+      { status: '?', path: 'untracked.txt' }
+    ]);
+  }
 });
 
 test('branch changes include committed, working-tree, and untracked files', async t => {
