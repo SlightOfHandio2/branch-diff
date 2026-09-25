@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { readFile } from 'node:fs/promises';
+import * as path from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -7,6 +9,7 @@ export interface BranchChange {
   path: string;
   status: string;
   originalPath?: string;
+  stats?: { added: number; deleted: number } | 'binary';
 }
 
 export interface BranchLineChange {
@@ -191,6 +194,38 @@ export async function listChanges(
   return changes
     .filter(change => !excludePatterns.some(pattern => pathMatchesPattern(change.path, pattern)))
     .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+export async function addChangeStats(root: string, comparisonCommit: string, scope: DiffScope,
+  changes: BranchChange[]): Promise<void> {
+  const fields = (await git(root, diffArgs(scope, comparisonCommit, ['--numstat', '-z']))).split('\0');
+  const stats = new Map<string, BranchChange['stats']>();
+  for (let i = 0; i < fields.length; i++) {
+    const match = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(fields[i]);
+    if (!match) continue;
+    let file = match[3];
+    if (!file) {
+      i++; // NUL-delimited rename source.
+      file = fields[++i];
+    }
+    stats.set(file, match[1] === '-' || match[2] === '-'
+      ? 'binary' : { added: Number(match[1]), deleted: Number(match[2]) });
+  }
+  for (const change of changes) {
+    change.stats = stats.get(change.path);
+    if (change.status === '?') {
+      try {
+        const content = await readFile(path.join(root, change.path));
+        change.stats = content.subarray(0, 8000).includes(0) ? 'binary' : {
+          added: content.reduce((count, byte) => count + (byte === 10 ? 1 : 0), 0)
+            + (content.length && content[content.length - 1] !== 10 ? 1 : 0),
+          deleted: 0
+        };
+      } catch {
+        // A file removed during refresh has unavailable statistics.
+      }
+    }
+  }
 }
 
 export function pathMatchesPattern(relativePath: string, pattern: string): boolean {

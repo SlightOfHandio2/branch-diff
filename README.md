@@ -11,6 +11,7 @@ Branch Diff shows everything changed on the current Git branch, including commit
 - Shows committed, staged, unstaged, and untracked changes in a dedicated Branch Diff view.
 - Shows Git-detected renames as a single `old → new` entry, with diffs against the original file and markers for actual edits.
 - Switches between committed-only, committed-plus-staged, and complete diff scopes.
+- Switches between flat and folder-tree layouts, with per-file line counts and folder/repository totals.
 - Maps branch patterns such as `feature/*` to configured base branches.
 - Adds customizable branch-change colors distinct from normal working-tree decorations.
 - Refreshes automatically after saves and branch checkouts.
@@ -40,6 +41,8 @@ Use the scope control beside the base to choose what the comparison includes:
 - **Everything** — committed, staged, unstaged, and untracked changes.
 
 The choice is saved per workspace in `branchDiff.scope`.
+
+Use **Branch Diff: Toggle Flat / Folder Tree** or the tree icon in the view title to switch layouts. The choice is saved in `branchDiff.viewLayout` (default: `flat`). File rows show added/deleted line counts; folder rows and the view heading show totals for the visible comparison after exclusions. Binary files are counted separately, and unreadable untracked files show statistics as unavailable.
 
 Exclude generated or noisy files with glob patterns. Patterns without a slash match a filename at any depth; a leading slash anchors the match to the repository root:
 

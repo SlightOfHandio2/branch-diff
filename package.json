@@ -32,6 +32,11 @@
   "contributes": {
     "commands": [
       {
+        "command": "branchDiff.toggleLayout",
+        "title": "Branch Diff: Toggle Flat / Folder Tree",
+        "icon": "$(list-tree)"
+      },
+      {
         "command": "branchDiff.chooseBase",
         "title": "Branch Diff: Choose Comparison Branch"
       },
@@ -120,6 +125,13 @@
     "configuration": {
       "title": "Branch Diff",
       "properties": {
+        "branchDiff.viewLayout": {
+          "type": "string",
+          "enum": ["flat", "tree"],
+          "default": "flat",
+          "scope": "window",
+          "description": "Display changed files as a flat list or a folder tree."
+        },
         "branchDiff.enabled": {
           "type": "boolean",
           "default": true,
@@ -219,6 +231,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "branchDiff.toggleLayout",
+          "group": "navigation",
+          "when": "view == branchDiff.changes"
+        },
         {
           "command": "branchDiff.refresh",
           "group": "navigation",

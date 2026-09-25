@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
   AutomaticBaseStrategy,
+  addChangeStats,
   BranchChange,
   BranchLineChange,
   DiffScope,
@@ -93,6 +94,7 @@ class BranchRepository implements vscode.Disposable {
       const branchChanges = await isCurrentBranch(this.root, baseName)
         ? []
         : await listChanges(this.root, comparisonCommit, scope, exclude);
+      if (branchChanges.length) await addChangeStats(this.root, comparisonCommit, scope, branchChanges);
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
       }
@@ -274,7 +276,7 @@ class BranchRepository implements vscode.Disposable {
     if (this.state === 'loading') return 'Loading comparison…';
     if (this.state === 'disabled') return 'Disabled';
     if (this.state === 'error') return 'Comparison failed';
-    return `vs ${this.comparisonLabel} • ${this.scopeLabel}`;
+    return `vs ${this.comparisonLabel} • ${this.scopeLabel} • ${changeTotals(this.changes)}`;
   }
 
   get emptyRows(): StateRow[] {
@@ -388,6 +390,7 @@ interface StateRow {
 }
 
 type BranchDiffTreeElement =
+  | { kind: 'folder'; repository: BranchRepository; folder: string }
   | { kind: 'state'; repository?: BranchRepository; row: StateRow }
   | { kind: 'repository'; repository: BranchRepository }
   | { kind: 'change'; repository: BranchRepository; change: BranchChange };
@@ -403,6 +406,13 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
   }
 
   getTreeItem(element: BranchDiffTreeElement): vscode.TreeItem {
+    if (element.kind === 'folder') {
+      const item = new vscode.TreeItem(path.posix.basename(element.folder), vscode.TreeItemCollapsibleState.Expanded);
+      item.id = `${element.repository.root}:folder:${element.folder}`;
+      item.iconPath = new vscode.ThemeIcon('folder');
+      item.description = changeTotals(element.repository.changes.filter(change => change.path.startsWith(`${element.folder}/`)));
+      return item;
+    }
     if (element.kind === 'state') {
       const item = new vscode.TreeItem(element.row.label, vscode.TreeItemCollapsibleState.None);
       item.iconPath = new vscode.ThemeIcon(element.row.icon);
@@ -429,7 +439,7 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
       ? `${change.originalPath} → ${change.path}`
       : path.basename(change.path), vscode.TreeItemCollapsibleState.None);
     const parent = path.posix.dirname(change.path);
-    item.description = `${parent === '.' ? '' : `${parent} • `}${statusLabel(change.status).toUpperCase()}`;
+    item.description = `${this.layout === 'flat' && parent !== '.' ? `${parent} • ` : ''}${statusLabel(change.status).toUpperCase()} • ${statsLabel(change)}`;
     item.tooltip = new vscode.MarkdownString(
       `**Branch comparison**  \n${change.originalPath ? `${change.originalPath} → ` : ''}${change.path}  \n${statusLabel(change.status)} relative to **${repository.comparisonLabel}**`
     );
@@ -444,6 +454,7 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
   }
 
   getChildren(element?: BranchDiffTreeElement): BranchDiffTreeElement[] {
+    if (element?.kind === 'folder') return this.folderChildren(element.repository, element.folder);
     if (element?.kind === 'change' || element?.kind === 'state') {
       return [];
     }
@@ -466,8 +477,27 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
 
   private repositoryChildren(repository: BranchRepository): BranchDiffTreeElement[] {
     return repository.changes.length
-      ? repository.changes.map(change => ({ kind: 'change', repository, change }))
+      ? this.layout === 'tree' ? this.folderChildren(repository, '')
+        : repository.changes.map(change => ({ kind: 'change', repository, change }))
       : repository.emptyRows.map(row => ({ kind: 'state', repository, row }));
+  }
+
+  private get layout(): string {
+    return vscode.workspace.getConfiguration(CONFIG_SECTION).get('viewLayout', 'flat');
+  }
+
+  private folderChildren(repository: BranchRepository, folder: string): BranchDiffTreeElement[] {
+    const prefix = folder ? `${folder}/` : '';
+    const folders = new Set<string>();
+    const files: BranchDiffTreeElement[] = [];
+    for (const change of repository.changes) {
+      if (!change.path.startsWith(prefix)) continue;
+      const remaining = change.path.slice(prefix.length);
+      const slash = remaining.indexOf('/');
+      if (slash >= 0) folders.add(prefix + remaining.slice(0, slash));
+      else files.push({ kind: 'change', repository, change });
+    }
+    return [...[...folders].sort().map(folder => ({ kind: 'folder' as const, repository, folder })), ...files];
   }
 
   dispose(): void {
@@ -493,13 +523,18 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
 
     this.treeView = vscode.window.createTreeView('branchDiff.changes', {
       treeDataProvider: this.treeProvider,
-      showCollapseAll: this.repositories.length > 1
+      showCollapseAll: true
     });
     this.treeView.message = 'Branch comparison — separate from uncommitted Git changes';
 
     this.disposables.push(
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this),
       this.treeView,
+      vscode.commands.registerCommand('branchDiff.toggleLayout', async () => {
+        const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
+        await configuration.update('viewLayout', configuration.get('viewLayout', 'flat') === 'flat' ? 'tree' : 'flat',
+          vscode.ConfigurationTarget.Workspace);
+      }),
       vscode.commands.registerCommand('branchDiff.stateAction', async (element: BranchDiffTreeElement) => {
         if (element.kind !== 'state') return;
         const repository = element.repository;
@@ -602,7 +637,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
         : undefined;
     } else {
       const changeCount = this.repositories.reduce((total, repository) => total + repository.changes.length, 0);
-      this.treeView.description = `${this.repositories.length} repositories`;
+      this.treeView.description = `${this.repositories.length} repositories • ${changeTotals(this.repositories.flatMap(repository => [...repository.changes]))}`;
       this.treeView.badge = changeCount
         ? { value: changeCount, tooltip: 'Files changed across branches' }
         : undefined;
@@ -690,6 +725,22 @@ function parseOriginalUri(uri: vscode.Uri): OriginalLocation | undefined {
     relativePath: uri.path.replace(/^\//, ''),
     revision: revision === 'HEAD' || revision === 'index' ? revision : undefined
   };
+}
+
+function statsLabel(change: BranchChange): string {
+  return change.stats === 'binary' ? 'Binary' : change.stats
+    ? `+${change.stats.added} −${change.stats.deleted}` : 'Stats unavailable';
+}
+
+function changeTotals(changes: readonly BranchChange[]): string {
+  let added = 0, deleted = 0, binary = 0, unavailable = 0;
+  for (const change of changes) {
+    if (change.stats === 'binary') binary++;
+    else if (change.stats) { added += change.stats.added; deleted += change.stats.deleted; }
+    else unavailable++;
+  }
+  return `${changes.length} ${changes.length === 1 ? 'file' : 'files'} • +${added} −${deleted}`
+    + (binary ? ` • ${binary} binary` : '') + (unavailable ? ` • ${unavailable} unavailable` : '');
 }
 
 function scopeLabel(scope: DiffScope): string {

@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import test from 'node:test';
 import {
   fileAtCommit,
+  addChangeStats,
   isCurrentBranch,
   listChanges,
   listLineChanges,
@@ -209,6 +210,9 @@ test('renames retain original paths across scopes and only mark actual edits', a
   for (const scope of ['committed', 'staged', 'all'] as const) {
     assert.deepEqual(await listChanges(root, base, scope), renamed);
     assert.deepEqual(await listLineChanges(root, base, destination, scope, originalPath), markers);
+    const changes = await listChanges(root, base, scope);
+    await addChangeStats(root, base, scope, changes);
+    assert.deepEqual(changes[0].stats, { added: 1, deleted: 1 });
   }
   assert.equal(await fileAtCommit(root, base, originalPath), content);
   assert.deepEqual(await listChanges(root, base, 'all', [destination.replace('[2]', '*')]), []);
@@ -219,6 +223,30 @@ test('renames retain original paths across scopes and only mark actual edits', a
     { status: 'A', path: destination },
     { status: 'M', path: originalPath }
   ]);
+});
+
+test('statistics follow scopes and exclusions and distinguish binary and untracked files', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const base = run(root, 'rev-parse', 'HEAD');
+  writeFileSync(path.join(root, 'existing.txt'), 'staged one\nstaged two\n');
+  writeFileSync(path.join(root, 'binary.dat'), Buffer.from([0, 1, 2, 3]));
+  run(root, 'add', '.');
+  writeFileSync(path.join(root, 'existing.txt'), 'working\n');
+  writeFileSync(path.join(root, 'untracked.txt'), 'first\nlast without newline');
+  writeFileSync(path.join(root, 'empty.txt'), '');
+  writeFileSync(path.join(root, 'untracked.dat'), Buffer.from([0, 1]));
+  const staged = await listChanges(root, base, 'staged');
+  await addChangeStats(root, base, 'staged', staged);
+  assert.deepEqual(staged.find(change => change.path === 'existing.txt')?.stats, { added: 2, deleted: 1 });
+  assert.equal(staged.find(change => change.path === 'binary.dat')?.stats, 'binary');
+  const all = await listChanges(root, base, 'all', ['binary.dat']);
+  await addChangeStats(root, base, 'all', all);
+  assert.equal(all.some(change => change.path === 'binary.dat'), false);
+  assert.deepEqual(all.find(change => change.path === 'existing.txt')?.stats, { added: 1, deleted: 1 });
+  assert.deepEqual(all.find(change => change.path === 'untracked.txt')?.stats, { added: 2, deleted: 0 });
+  assert.deepEqual(all.find(change => change.path === 'empty.txt')?.stats, { added: 0, deleted: 0 });
+  assert.equal(all.find(change => change.path === 'untracked.dat')?.stats, 'binary');
 });
 
 test('unified diff hunks become added, modified, and deleted line markers', () => {

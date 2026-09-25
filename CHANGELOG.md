@@ -6,6 +6,8 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ### Added
 
+- Flat/folder-tree layout toggle with per-file added/deleted line counts, folder subtotals, and repository/workspace totals. Binary files and unavailable statistics are labelled separately.
+
 - Git rename detection across diff scopes, with old-to-new paths, original-file comparisons, and line markers limited to edits within renamed files.
 
 - Explicit loading, empty, disabled, missing-repository, and comparison-error states, with recovery actions in the Branch Diff view.
