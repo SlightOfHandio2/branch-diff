@@ -59,6 +59,8 @@ Other commands:
 
 Changed files appear only under **Branch Changes** in the dedicated Branch Diff view, keeping them separate from uncommitted changes in Source Control. The view uses its own accent colors and explicit branch-status labels. Selecting a file opens the full comparison.
 
+When there are no files to show, the view explains whether the comparison is empty, Branch Diff is disabled, no repository was found, or the comparison failed. Use the actions in the view to choose a base or scope, enable Branch Diff, open a repository folder, or retry. Hover over a failed comparison message for the error details. In multi-repository workspaces, each repository shows its own state and recovery actions.
+
 ## How automatic base detection works
 
 By default, Branch Diff finds the closest local branch whose tip is an ancestor of the current branch. Given `main → A → B → C`, this selects `B` from `C`, `A` from `B`, and `main` from `A`.

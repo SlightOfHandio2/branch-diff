@@ -46,6 +46,8 @@ class BranchRepository implements vscode.Disposable {
   private refreshTimer: NodeJS.Timeout | undefined;
   private refreshGeneration = 0;
   private disposed = false;
+  private state: 'loading' | 'ready' | 'disabled' | 'error' = 'loading';
+  private failure: string | undefined;
 
   constructor(
     readonly root: string,
@@ -69,6 +71,8 @@ class BranchRepository implements vscode.Disposable {
     }
     const generation = ++this.refreshGeneration;
     if (!this.isEnabled()) {
+      this.state = 'disabled';
+      this.failure = undefined;
       this.comparisonCommit = undefined;
       this.branchChanges.clear();
       this.baseName = undefined;
@@ -95,6 +99,8 @@ class BranchRepository implements vscode.Disposable {
       this.baseName = baseName;
       this.comparisonCommit = comparisonCommit;
       this.scope = scope;
+      this.state = 'ready';
+      this.failure = undefined;
       this.branchChanges.clear();
       branchChanges.forEach(change => this.branchChanges.set(change.path, change));
       this.treeChanged();
@@ -107,7 +113,10 @@ class BranchRepository implements vscode.Disposable {
       this.comparisonCommit = undefined;
       this.branchChanges.clear();
       this.baseName = undefined;
+      this.state = 'error';
+      this.failure = error instanceof Error ? error.message : String(error);
       this.treeChanged();
+      this.fireOpenOriginals();
       this.clearVisibleDecorations();
       if (showErrors) {
         void vscode.window.showErrorMessage(`Branch Diff: ${errorMessage(error)}`);
@@ -260,6 +269,37 @@ class BranchRepository implements vscode.Disposable {
     return scopeLabel(this.scope);
   }
 
+  get description(): string {
+    if (this.state === 'loading') return 'Loading comparison…';
+    if (this.state === 'disabled') return 'Disabled';
+    if (this.state === 'error') return 'Comparison failed';
+    return `vs ${this.comparisonLabel} • ${this.scopeLabel}`;
+  }
+
+  get emptyRows(): StateRow[] {
+    if (this.state === 'loading') {
+      return [{ label: 'Loading branch comparison…', icon: 'loading~spin' }];
+    }
+    if (this.state === 'disabled') {
+      return [{ label: 'Branch Diff is disabled', icon: 'circle-slash' },
+        { label: 'Enable Branch Diff', icon: 'play', action: 'enable' }];
+    }
+    if (this.state === 'error') {
+      return [{ label: 'Could not compare this branch', icon: 'warning', detail: this.failure },
+        { label: 'Retry comparison', icon: 'refresh', action: 'retry' },
+        { label: 'Choose comparison branch…', icon: 'git-branch', action: 'base' }];
+    }
+    return [{ label: 'No changes in this comparison', icon: 'check',
+      detail: `No files to show against ${this.comparisonLabel} (${this.scopeLabel}), after exclusions. Comparing a branch with itself shows no changes.` },
+      { label: 'Choose comparison branch…', icon: 'git-branch', action: 'base' },
+      { label: 'Choose diff scope…', icon: 'filter', action: 'scope' }];
+  }
+
+  async enable(): Promise<void> {
+    await this.configuration().update('enabled', true, vscode.ConfigurationTarget.WorkspaceFolder);
+    await this.refresh(true);
+  }
+
   uriFor(change: BranchChange): vscode.Uri {
     return vscode.Uri.file(path.join(this.root, ...change.path.split('/')));
   }
@@ -339,7 +379,15 @@ class BranchRepository implements vscode.Disposable {
   }
 }
 
+interface StateRow {
+  label: string;
+  icon: string;
+  detail?: string;
+  action?: 'enable' | 'retry' | 'base' | 'scope' | 'openFolder';
+}
+
 type BranchDiffTreeElement =
+  | { kind: 'state'; repository?: BranchRepository; row: StateRow }
   | { kind: 'repository'; repository: BranchRepository }
   | { kind: 'change'; repository: BranchRepository; change: BranchChange };
 
@@ -354,12 +402,21 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
   }
 
   getTreeItem(element: BranchDiffTreeElement): vscode.TreeItem {
+    if (element.kind === 'state') {
+      const item = new vscode.TreeItem(element.row.label, vscode.TreeItemCollapsibleState.None);
+      item.iconPath = new vscode.ThemeIcon(element.row.icon);
+      item.tooltip = element.row.detail ?? element.row.label;
+      if (element.row.action) {
+        item.command = { command: 'branchDiff.stateAction', title: element.row.label, arguments: [element] };
+      }
+      return item;
+    }
     if (element.kind === 'repository') {
       const item = new vscode.TreeItem(
         path.basename(element.repository.root),
         vscode.TreeItemCollapsibleState.Expanded
       );
-      item.description = `vs ${element.repository.comparisonLabel} • ${element.repository.scopeLabel}`;
+      item.description = element.repository.description;
       item.iconPath = new vscode.ThemeIcon('repo', new vscode.ThemeColor('branchDiff.accent'));
       item.contextValue = 'branchDiff.repository';
       return item;
@@ -384,17 +441,30 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
   }
 
   getChildren(element?: BranchDiffTreeElement): BranchDiffTreeElement[] {
-    if (element?.kind === 'change') {
+    if (element?.kind === 'change' || element?.kind === 'state') {
       return [];
     }
     if (element?.kind === 'repository') {
-      return element.repository.changes.map(change => ({ kind: 'change', repository: element.repository, change }));
+      return this.repositoryChildren(element.repository);
     }
     if (this.repositories.length === 1) {
       const repository = this.repositories[0];
-      return repository.changes.map(change => ({ kind: 'change', repository, change }));
+      return this.repositoryChildren(repository);
+    }
+    if (this.repositories.length === 0) {
+      return [
+        { kind: 'state', row: { label: 'No Git repository found', icon: 'info',
+          detail: 'Open a folder containing a Git repository. Git must be installed and available on your system path.' } },
+        { kind: 'state', row: { label: 'Open repository folder…', icon: 'folder-opened', action: 'openFolder' } }
+      ];
     }
     return this.repositories.map(repository => ({ kind: 'repository', repository }));
+  }
+
+  private repositoryChildren(repository: BranchRepository): BranchDiffTreeElement[] {
+    return repository.changes.length
+      ? repository.changes.map(change => ({ kind: 'change', repository, change }))
+      : repository.emptyRows.map(row => ({ kind: 'state', repository, row }));
   }
 
   dispose(): void {
@@ -427,6 +497,21 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     this.disposables.push(
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this),
       this.treeView,
+      vscode.commands.registerCommand('branchDiff.stateAction', async (element: BranchDiffTreeElement) => {
+        if (element.kind !== 'state') return;
+        const repository = element.repository;
+        try {
+          switch (element.row.action) {
+            case 'openFolder': await vscode.commands.executeCommand('vscode.openFolder'); break;
+            case 'enable': await repository?.enable(); break;
+            case 'retry': await repository?.refresh(true); break;
+            case 'base': await repository?.chooseBase(); break;
+            case 'scope': await repository?.chooseScope(); break;
+          }
+        } catch (error) {
+          void vscode.window.showErrorMessage(`Branch Diff: ${errorMessage(error)}`);
+        }
+      }),
       vscode.commands.registerCommand('branchDiff.refresh', () => this.forSelected(repository => repository.refresh(true))),
       vscode.commands.registerCommand('branchDiff.chooseBase', () => this.forSelected(repository => repository.chooseBase())),
       vscode.commands.registerCommand('branchDiff.chooseScope', () => this.forSelected(repository => repository.chooseScope())),
@@ -451,6 +536,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
       })
     );
     context.subscriptions.push(this);
+    this.updateTree();
     await this.refreshAll();
     await this.listenToBuiltInGit();
   }
@@ -507,7 +593,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     }
     if (this.repositories.length === 1) {
       const repository = this.repositories[0];
-      this.treeView.description = `vs ${repository.comparisonLabel} • ${repository.scopeLabel}`;
+      this.treeView.description = repository.description;
       this.treeView.badge = repository.changes.length
         ? { value: repository.changes.length, tooltip: 'Files changed on this branch' }
         : undefined;
