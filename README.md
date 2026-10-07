@@ -5,6 +5,8 @@
 
 Branch Diff shows everything changed on the current Git branch, including committed work that VS Code's standard working-tree view no longer shows. It compares against the commit where the branch split from its base and presents the results in a dedicated Activity Bar view, alongside distinctive editor markers and the standard diff UI.
 
+The small product website lives in [`website/`](website/README.md).
+
 ## Features
 
 - Automatically detects the nearest parent branch, including stacked branches.

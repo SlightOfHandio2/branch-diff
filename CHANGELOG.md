@@ -2,6 +2,10 @@
 
 Notable changes to Branch Diff are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- Refresh the comparison reliably when Git switches branches, including checkouts initiated outside VS Code.
+
 ## 0.4.0
 
 ### Added

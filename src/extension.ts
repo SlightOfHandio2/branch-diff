@@ -619,6 +619,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     context.subscriptions.push(this);
     this.updateTree();
     await this.refreshAll();
+    await this.listenToGitHeadFiles();
     await this.listenToBuiltInGit();
   }
 
@@ -726,6 +727,24 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     } catch {
       // Focus changes, saves, and the manual command remain as refresh fallbacks.
     }
+  }
+
+  private async listenToGitHeadFiles(): Promise<void> {
+    await Promise.all(this.repositories.map(async repository => {
+      try {
+        const gitHead = (await git(repository.root, ['rev-parse', '--git-path', 'HEAD'])).trim();
+        const headPath = path.isAbsolute(gitHead) ? gitHead : path.resolve(repository.root, gitHead);
+        const watcher = vscode.workspace.createFileSystemWatcher(
+          new vscode.RelativePattern(path.dirname(headPath), path.basename(headPath))
+        );
+        watcher.onDidChange(() => repository.scheduleRefresh(), undefined, this.disposables);
+        watcher.onDidCreate(() => repository.scheduleRefresh(), undefined, this.disposables);
+        watcher.onDidDelete(() => repository.scheduleRefresh(), undefined, this.disposables);
+        this.disposables.push(watcher);
+      } catch {
+        // The built-in Git event, focus changes, saves, and manual refresh remain as fallbacks.
+      }
+    }));
   }
 }
 
