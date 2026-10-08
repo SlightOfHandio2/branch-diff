@@ -1,105 +1,87 @@
 const githubUrl = "https://github.com/SlightOfHandio2/branch-diff";
-const releaseUrl = `${githubUrl}/releases`;
 
-const capabilities = [
-  {
-    title: "Complete branch changes",
-    copy: "See committed, staged, unstaged, and untracked files in one list.",
-  },
-  {
-    title: "Useful comparison base",
-    copy: "Use the nearest parent branch automatically, or select a different Git ref.",
-  },
-  {
-    title: "Editor markers",
-    copy: "See added, modified, and deleted lines in the gutter and overview ruler.",
-  },
+const features = [
+  ["Branch comparison", "Committed, staged, unstaged, and untracked changes in one view."],
+  ["Base detection", "Finds the nearest parent branch, with a manual base when you need one."],
+  ["Editor markers", "Added, modified, and deleted lines appear in the gutter and overview ruler."],
 ];
+
+function Logo() {
+  return (
+    <svg className="logo" viewBox="0 0 42 42" aria-hidden="true">
+      <circle cx="11" cy="9" r="5" />
+      <path d="M11 14v3c0 4 3 7 7 7h6c4 0 7 3 7 7v2" />
+      <circle cx="31" cy="34" r="5" />
+      <path d="M28 5h10M33 0v10" />
+    </svg>
+  );
+}
+
+function ProductView() {
+  return (
+    <div className="product-view" aria-label="Example of the Branch Diff view">
+      <div className="product-bar">
+        <span>BRANCH CHANGES</span>
+      </div>
+      <div className="file-list">
+        <div><b>A</b><span>src/lineMapping.ts</span><small>+84 −0</small></div>
+        <div className="selected"><b>M</b><span>src/extension.ts</span><small>+26 −9</small></div>
+        <div><b>R</b><span>src/git.ts</span><small>+12 −4</small></div>
+        <div><b>D</b><span>src/legacy.ts</span><small>+0 −31</small></div>
+      </div>
+      <div className="code-view">
+        <p><i>41</i>const base = await resolveBase(root);</p>
+        <p className="removed"><i>42</i>− return diff(root, base);</p>
+        <p className="added"><i>42</i>+ return branchDiff(root, base, scope);</p>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <main id="top">
-      <header className="site-header">
-        <a className="brand" href="#top" aria-label="Branch Diff home">
-          <img src="/branch-diff.svg" alt="" />
-          <span>Branch Diff</span>
+      <header>
+        <a className="wordmark" href="#top" aria-label="Branch Diff home">
+          <Logo />
+          <span>BRANCH DIFF</span>
         </a>
-        <nav aria-label="Main navigation">
-          <a href="#features">Features</a>
-          <a href="#install">Install</a>
-          <a href={githubUrl}>GitHub</a>
-        </nav>
+        <div className="header-meta"><span>VS CODE EXTENSION</span><a href={githubUrl}>GITHUB ↗</a></div>
       </header>
 
       <section className="hero">
         <div className="hero-copy">
-          <p className="product-type">VS Code extension</p>
-          <h1>See every change on your current branch.</h1>
-          <p className="lede">
-            Branch Diff compares your branch with its merge base and shows committed work alongside
-            staged, unstaged, and untracked changes.
+          <h1>Review branch changes in VS Code.</h1>
+          <p className="intro">
+            Branch Diff compares the current branch with its merge base, including committed,
+            staged, unstaged, and untracked work.
           </p>
-          <div className="hero-actions">
-            <a className="button button-primary" href={releaseUrl}>Download VSIX</a>
-            <a className="button" href={`${githubUrl}#usage`}>Documentation</a>
+          <div className="actions">
+            <a className="primary" href={githubUrl}>VIEW SOURCE <span>↗</span></a>
+            <a href={`${githubUrl}#usage`}>READ THE DOCS <span>↗</span></a>
           </div>
-          <p className="requirement">Requires VS Code 1.95 or later and Git.</p>
+          <p className="requirement">VS CODE 1.95+ / GIT REQUIRED</p>
         </div>
-
-        <div className="product-window" aria-label="Example of the Branch Diff view">
-          <div className="window-title">
-            <span>Branch changes</span>
-            <span>vs main · Everything</span>
-          </div>
-          <div className="change-list">
-            <div className="change-row"><i className="added">A</i><span>src/lineMapping.ts</span><em>+84 −0</em></div>
-            <div className="change-row active"><i className="modified">M</i><span>src/extension.ts</span><em>+26 −9</em></div>
-            <div className="change-row"><i className="renamed">R</i><span>src/git.ts</span><em>+12 −4</em></div>
-            <div className="change-row"><i className="deleted">D</i><span>src/legacy.ts</span><em>+0 −31</em></div>
-          </div>
-          <div className="diff-preview" aria-hidden="true">
-            <div><span>41</span><code>const base = await resolveBase(root);</code></div>
-            <div className="removed"><span>42</span><code>- return diff(root, base);</code></div>
-            <div className="inserted"><span>42</span><code>+ return branchDiff(root, base, scope);</code></div>
-            <div><span>43</span><code>{"}"}</code></div>
-          </div>
-        </div>
+        <ProductView />
       </section>
 
-      <section className="features" id="features" aria-labelledby="features-title">
-        <div className="section-heading">
-          <h2 id="features-title">Features</h2>
-          <p>Branch Diff is separate from VS Code’s standard working-tree view.</p>
+      <section className="capabilities" aria-labelledby="capabilities-title">
+        <div className="section-label">
+          <h2 id="capabilities-title">Features.</h2>
         </div>
         <div className="feature-list">
-          {capabilities.map((capability) => (
-            <article key={capability.title}>
-              <h3>{capability.title}</h3>
-              <p>{capability.copy}</p>
+          {features.map(([title, description]) => (
+            <article key={title}>
+              <h3>{title}</h3>
+              <p>{description}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="install" id="install" aria-labelledby="install-title">
-        <div className="section-heading">
-          <h2 id="install-title">Install</h2>
-          <p>Branch Diff starts enabled for Git repositories in the open workspace.</p>
-        </div>
-        <div className="steps">
-          <div><h3>Download</h3><p>Get the latest <code>.vsix</code> from GitHub Releases.</p></div>
-          <div><h3>Install</h3><p>In VS Code’s Extensions view, choose <strong>Install from VSIX…</strong></p></div>
-          <div><h3>Open</h3><p>Select Branch Diff from the Activity Bar.</p></div>
-        </div>
-        <div className="install-actions">
-          <a className="button button-primary" href={releaseUrl}>View releases</a>
-          <a className="text-link" href={`${githubUrl}#usage`}>Usage and configuration →</a>
-        </div>
-      </section>
-
       <footer>
-        <span>Branch Diff · MIT License</span>
-        <div><a href={githubUrl}>Source</a><a href={`${githubUrl}/issues`}>Issues</a></div>
+        <span>BRANCH DIFF / MIT</span>
+        <nav aria-label="Footer"><a href={githubUrl}>SOURCE</a><a href={`${githubUrl}/issues`}>ISSUES</a></nav>
       </footer>
     </main>
   );
