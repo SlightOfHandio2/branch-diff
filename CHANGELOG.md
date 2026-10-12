@@ -4,6 +4,11 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ## Unreleased
 
+## 0.4.7
+
+- Replace long toolbar labels with compact icons and add clickable Base and Scope rows.
+- Simplify the sidebar heading and show file line counts before paths, with full details on hover.
+
 - Refresh the comparison reliably when Git switches branches, including checkouts initiated outside VS Code.
 
 ## 0.4.0
