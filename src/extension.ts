@@ -303,7 +303,7 @@ class BranchRepository implements vscode.Disposable {
     if (this.state === 'loading') return 'Loading comparison…';
     if (this.state === 'disabled') return 'Disabled';
     if (this.state === 'error') return 'Comparison failed';
-    return `vs ${this.comparisonLabel} • ${this.scopeLabel} • ${changeTotals(this.changes)}`;
+    return changeTotals(this.changes);
   }
 
   get emptyRows(): StateRow[] {
@@ -412,6 +412,7 @@ class BranchRepository implements vscode.Disposable {
 interface StateRow {
   label: string;
   icon: string;
+  description?: string;
   detail?: string;
   action?: 'enable' | 'retry' | 'base' | 'scope' | 'openFolder';
 }
@@ -435,7 +436,7 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
 
   getTreeItem(element: BranchDiffTreeElement): vscode.TreeItem {
     if (element.kind === 'comparison') {
-      const item = new vscode.TreeItem('Comparison base', vscode.TreeItemCollapsibleState.None);
+      const item = new vscode.TreeItem('Base', vscode.TreeItemCollapsibleState.None);
       item.description = element.repository.baseSummary;
       item.tooltip = element.repository.baseExplanation;
       item.iconPath = new vscode.ThemeIcon('git-branch');
@@ -454,6 +455,7 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
     if (element.kind === 'state') {
       const item = new vscode.TreeItem(element.row.label, vscode.TreeItemCollapsibleState.None);
       item.iconPath = new vscode.ThemeIcon(element.row.icon);
+      item.description = element.row.description;
       item.tooltip = element.row.detail ?? element.row.label;
       if (element.row.action) {
         item.command = { command: 'branchDiff.stateAction', title: element.row.label, arguments: [element] };
@@ -478,9 +480,9 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
       ? `${change.originalPath} → ${change.path}`
       : path.basename(change.path), vscode.TreeItemCollapsibleState.None);
     const parent = path.posix.dirname(change.path);
-    item.description = `${this.layout === 'flat' && parent !== '.' ? `${parent} • ` : ''}${statusLabel(change.status).toUpperCase()} • ${statsLabel(change)}`;
+    item.description = `${statsLabel(change)}${this.layout === 'flat' && parent !== '.' ? ` • ${parent}` : ''}`;
     item.tooltip = new vscode.MarkdownString(
-      `**Branch comparison**  \n${change.originalPath ? `${change.originalPath} → ` : ''}${change.path}  \n${statusLabel(change.status)} relative to **${repository.comparisonLabel}**`
+      `**Branch comparison**  \n${change.originalPath ? `${change.originalPath} → ` : ''}${change.path}  \n${statusLabel(change.status)} relative to **${repository.comparisonLabel}**  \n${statsLabel(change)} • ${repository.scopeLabel}`
     );
     item.iconPath = new vscode.ThemeIcon(statusIcon(change.status), new vscode.ThemeColor(statusColor(change.status)));
     item.command = {
@@ -519,7 +521,13 @@ class BranchDiffTreeProvider implements vscode.TreeDataProvider<BranchDiffTreeEl
       ? this.layout === 'tree' ? this.folderChildren(repository, '')
         : repository.changes.map(change => ({ kind: 'change', repository, change }))
       : repository.emptyRows.map(row => ({ kind: 'state', repository, row }));
-    return repository.baseSummary ? [{ kind: 'comparison', repository }, ...children] : children;
+    return repository.baseSummary ? [
+      { kind: 'comparison', repository },
+      { kind: 'state', repository, row: { label: 'Scope', icon: 'filter',
+        description: repository.scopeLabel, detail: `Included changes: ${repository.scopeLabel}. Click to change the diff scope.`,
+        action: 'scope' } },
+      ...children
+    ] : children;
   }
 
   private get layout(): string {
@@ -565,7 +573,6 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
       treeDataProvider: this.treeProvider,
       showCollapseAll: true
     });
-    this.treeView.message = 'Branch comparison — separate from uncommitted Git changes';
 
     this.disposables.push(
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this),
