@@ -92,6 +92,29 @@ test('repository-default strategy remains available', async t => {
   assert.equal(await resolveBase(root, '', 'defaultBranch'), 'main');
 });
 
+test('nearest ancestor ignores divergent and equal-tip branches and breaks alias ties by name', async t => {
+  const root = repository();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  run(root, 'switch', '-c', 'divergent');
+  writeFileSync(path.join(root, 'unrelated.txt'), 'unrelated\n');
+  run(root, 'add', '.');
+  run(root, 'commit', '-m', 'unrelated work');
+  run(root, 'switch', '-c', 'parent-z', 'main');
+  writeFileSync(path.join(root, 'parent.txt'), 'parent\n');
+  run(root, 'add', '.');
+  run(root, 'commit', '-m', 'parent work');
+  run(root, 'branch', 'parent-a');
+  run(root, 'switch', '-c', 'feature');
+  writeFileSync(path.join(root, 'feature.txt'), 'feature\n');
+  run(root, 'add', '.');
+  run(root, 'commit', '-m', 'feature work');
+  run(root, 'branch', 'equal-tip');
+
+  assert.equal(await resolveBase(root, ''), 'parent-a');
+  run(root, 'switch', '--detach');
+  assert.equal(await resolveBase(root, ''), 'parent-a');
+});
+
 test('branch base mappings prefer exact names and support wildcards', () => {
   const mappings = {
     'feature/*': 'develop',

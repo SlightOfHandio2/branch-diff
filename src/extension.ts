@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { alignLineChanges } from './lineMapping';
+import { RefreshQueue } from './refreshQueue';
 import * as vscode from 'vscode';
 import {
   AutomaticBaseStrategy,
@@ -48,6 +49,7 @@ class BranchRepository implements vscode.Disposable {
   private decorationColorSignature = '';
   private refreshTimer: NodeJS.Timeout | undefined;
   private refreshGeneration = 0;
+  private readonly refreshQueue = new RefreshQueue(showErrors => this.performRefresh(showErrors));
   private disposed = false;
   private state: 'loading' | 'ready' | 'disabled' | 'error' = 'loading';
   private failure: string | undefined;
@@ -69,10 +71,20 @@ class BranchRepository implements vscode.Disposable {
   }
 
   async refresh(showErrors = false): Promise<void> {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = undefined;
+    }
+    this.refreshGeneration++;
+    await this.refreshQueue.request(showErrors);
+  }
+
+  private async performRefresh(showErrors: boolean): Promise<void> {
     if (this.disposed) {
       return;
     }
-    const generation = ++this.refreshGeneration;
+    const generation = this.refreshGeneration;
+    const stale = () => this.disposed || generation !== this.refreshGeneration;
     if (!this.isEnabled()) {
       this.state = 'disabled';
       this.failure = undefined;
@@ -92,9 +104,12 @@ class BranchRepository implements vscode.Disposable {
       const scope = this.configuration().get<DiffScope>('scope', 'all');
       const exclude = this.configuration().get<string[]>('exclude', []);
       const selection = await resolveBaseDetails(this.root, configured, strategy, branchBases);
+      if (stale()) return;
       const baseName = selection.ref;
       const comparisonCommit = await mergeBase(this.root, baseName);
+      if (stale()) return;
       const branchChanges = await listChanges(this.root, comparisonCommit, scope, exclude);
+      if (stale()) return;
       if (branchChanges.length) await addChangeStats(this.root, comparisonCommit, scope, branchChanges);
       if (this.disposed || generation !== this.refreshGeneration) {
         return;
@@ -129,6 +144,9 @@ class BranchRepository implements vscode.Disposable {
   }
 
   scheduleRefresh(): void {
+    if (this.disposed) return;
+    // Invalidate an in-flight result as soon as the repository changes.
+    this.refreshGeneration++;
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
     }

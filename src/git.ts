@@ -73,7 +73,7 @@ export async function resolveBaseDetails(
   }
 
   if (strategy === 'nearestAncestor') {
-    const nearest = await nearestAncestorBranch(root);
+    const nearest = await nearestAncestorBranch(root, current);
     if (nearest) {
       return { ref: nearest, reason: 'Automatically selected the nearest local ancestor branch. Equal-distance candidates are ordered by name.' };
     }
@@ -106,22 +106,32 @@ function matchesBranchPattern(branch: string, pattern: string): boolean {
   return new RegExp(`^${expression}$`).test(branch);
 }
 
-async function nearestAncestorBranch(root: string): Promise<string | undefined> {
-  const current = (await git(root, ['branch', '--show-current'])).trim();
-  const output = await git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']);
-  const branches = output.split('\n').map(branch => branch.trim()).filter(branch => branch && branch !== current);
-  const candidates = await Promise.all(branches.map(async branch => {
-    try {
-      await git(root, ['merge-base', '--is-ancestor', branch, 'HEAD']);
-      const distance = Number.parseInt((await git(root, ['rev-list', '--count', `${branch}..HEAD`])).trim(), 10);
-      return distance > 0 ? { branch, distance } : undefined;
-    } catch {
-      return undefined;
+async function nearestAncestorBranch(root: string, current: string): Promise<string | undefined> {
+  // Let Git filter ancestry in one walk rather than spawning a process per branch.
+  const output = await git(root, ['for-each-ref', '--merged=HEAD',
+    '--format=%(objectname) %(refname:short)', 'refs/heads']);
+  const tips = new Map<string, string[]>();
+  for (const line of output.trim().split('\n')) {
+    const [commit, branch] = line.trim().split(' ');
+    if (!branch || branch === current) continue;
+    const names = tips.get(commit) ?? [];
+    names.push(branch);
+    tips.set(commit, names);
+  }
+  const pending = [...tips];
+  const candidates: Array<{ branch: string; distance: number }> = [];
+  // Branch aliases share a count. Bound process creation even in large stacks.
+  await Promise.all(Array.from({ length: Math.min(4, pending.length) }, async () => {
+    for (let tip = pending.pop(); tip; tip = pending.pop()) {
+      const [commit, branches] = tip;
+      const distance = Number.parseInt((await git(root, ['rev-list', '--count', `${commit}..HEAD`])).trim(), 10);
+      if (distance > 0) {
+        candidates.push(...branches.map(branch => ({ branch, distance })));
+      }
     }
   }));
 
   return candidates
-    .filter((candidate): candidate is { branch: string; distance: number } => candidate !== undefined)
     .sort((a, b) => a.distance - b.distance || a.branch.localeCompare(b.branch))[0]?.branch;
 }
 
