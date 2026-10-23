@@ -4,7 +4,7 @@
   "icon": "media/logo.png",
   "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
   "version": "1.0.0",
-  "publisher": "oddis",
+  "publisher": "oddiss",
   "license": "MIT",
   "repository": {
     "type": "git",

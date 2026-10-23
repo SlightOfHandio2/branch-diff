@@ -9,7 +9,7 @@ Releases are built by GitHub Actions when a version tag is pushed.
 3. Run `npm test`.
 4. Run `npm run package` and install the generated VSIX in a clean VS Code profile.
 5. Smoke-test automatic and manual comparison bases, all three diff scopes, flat and folder layouts, editor markers, renames, deletions, and a multi-root workspace.
-6. Confirm the repository visibility and distribution channel. For Marketplace publishing, use the `oddis` publisher account matching `package.json`.
+6. Confirm the repository visibility and distribution channel. For Marketplace publishing, use the `oddiss` publisher account matching `package.json`.
 7. Commit the release changes and confirm CI passes on the release commit.
 
 ## Create the release
@@ -31,11 +31,11 @@ The site is deployed to existing Oddiss hosting. Build it with `npm ci --prefix 
 
 ## VS Code Marketplace
 
-The extension uses publisher ID `oddis`, giving it the Marketplace identifier `oddis.branch-diff`.
+The extension uses publisher ID `oddiss`, giving it the Marketplace identifier `oddiss.branch-diff`.
 
 For a manual release:
 
-1. Sign into the Marketplace publisher dashboard and select publisher `oddis`.
+1. Sign into the Marketplace publisher dashboard and select publisher `oddiss`.
 2. Run `npm run package` to produce `branch-diff-1.0.0.vsix` for this release.
 3. Choose **New extension → Visual Studio Code** and upload the VSIX. For later releases, increase the version and use **Update** on the existing extension.
 
