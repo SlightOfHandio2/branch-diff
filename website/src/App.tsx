@@ -7,14 +7,7 @@ const features = [
 ];
 
 function Logo() {
-  return (
-    <svg className="logo" viewBox="0 0 42 42" aria-hidden="true">
-      <circle cx="11" cy="9" r="5" />
-      <path d="M11 14v3c0 4 3 7 7 7h6c4 0 7 3 7 7v2" />
-      <circle cx="31" cy="34" r="5" />
-      <path d="M28 5h10M33 0v10" />
-    </svg>
-  );
+  return <img className="logo" src="/branch-diff.svg" alt="" aria-hidden="true" />;
 }
 
 function ProductView() {
@@ -44,30 +37,34 @@ export default function App() {
       <header>
         <a className="wordmark" href="#top" aria-label="Branch Diff home">
           <Logo />
-          <span>BRANCH DIFF</span>
+          <span>Branch Diff</span>
         </a>
-        <div className="header-meta"><span>VS CODE EXTENSION</span><a href={githubUrl}>GITHUB ↗</a></div>
+        <nav className="header-meta" aria-label="Main navigation">
+          <a href="#capabilities-title">Features</a>
+          <a href={githubUrl}>GitHub ↗</a>
+        </nav>
       </header>
 
       <section className="hero">
         <div className="hero-copy">
+          <p className="eyebrow">A VS Code extension by Oddiss</p>
           <h1>Review branch changes in VS Code.</h1>
           <p className="intro">
             Branch Diff compares the current branch with its merge base, including committed,
             staged, unstaged, and untracked work.
           </p>
           <div className="actions">
-            <a className="primary" href={githubUrl}>VIEW SOURCE <span>↗</span></a>
-            <a href={`${githubUrl}#usage`}>READ THE DOCS <span>↗</span></a>
+            <a className="primary" href={githubUrl}>View source <span aria-hidden="true">↗</span></a>
+            <a href={`${githubUrl}#usage`}>Read the docs <span aria-hidden="true">↗</span></a>
           </div>
-          <p className="requirement">VS CODE 1.95+ / GIT REQUIRED</p>
+          <p className="requirement">VS Code 1.95+ · Git required</p>
         </div>
         <ProductView />
       </section>
 
       <section className="capabilities" aria-labelledby="capabilities-title">
         <div className="section-label">
-          <h2 id="capabilities-title">Features.</h2>
+          <h2 id="capabilities-title">A clearer view of your branch.</h2>
         </div>
         <div className="feature-list">
           {features.map(([title, description]) => (
@@ -80,8 +77,9 @@ export default function App() {
       </section>
 
       <footer>
-        <span>BRANCH DIFF / MIT</span>
-        <nav aria-label="Footer"><a href={githubUrl}>SOURCE</a><a href={`${githubUrl}/issues`}>ISSUES</a></nav>
+        <span>Branch Diff · MIT licence</span>
+        <nav aria-label="Footer"><a href={githubUrl}>Source</a><a href={`${githubUrl}/issues`}>Issues</a></nav>
+        <a className="powered-by" href="https://oddiss.com/">Powered by <strong>Oddiss</strong> <span aria-hidden="true">↗</span></a>
       </footer>
     </main>
   );
