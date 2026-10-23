@@ -2,7 +2,7 @@
   "name": "branch-diff",
   "displayName": "Branch Diff",
   "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
-  "version": "0.4.0",
+  "version": "0.4.7",
   "publisher": "local",
   "license": "MIT",
   "repository": {
@@ -38,11 +38,13 @@
       },
       {
         "command": "branchDiff.chooseBase",
-        "title": "Branch Diff: Choose Comparison Branch"
+        "title": "Branch Diff: Choose Comparison Branch",
+        "icon": "$(git-branch)"
       },
       {
         "command": "branchDiff.chooseScope",
-        "title": "Branch Diff: Choose Diff Scope"
+        "title": "Branch Diff: Choose Diff Scope",
+        "icon": "$(filter)"
       },
       {
         "command": "branchDiff.useAutomaticBase",
@@ -50,7 +52,8 @@
       },
       {
         "command": "branchDiff.refresh",
-        "title": "Branch Diff: Refresh"
+        "title": "Branch Diff: Refresh",
+        "icon": "$(refresh)"
       },
       {
         "command": "branchDiff.toggle",
@@ -236,22 +239,22 @@
       "view/title": [
         {
           "command": "branchDiff.toggleLayout",
-          "group": "navigation",
+          "group": "navigation@3",
           "when": "view == branchDiff.changes"
         },
         {
           "command": "branchDiff.refresh",
-          "group": "navigation",
+          "group": "navigation@4",
           "when": "view == branchDiff.changes"
         },
         {
           "command": "branchDiff.chooseBase",
-          "group": "navigation",
+          "group": "navigation@1",
           "when": "view == branchDiff.changes"
         },
         {
           "command": "branchDiff.chooseScope",
-          "group": "navigation",
+          "group": "navigation@2",
           "when": "view == branchDiff.changes"
         }
       ]

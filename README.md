@@ -5,6 +5,8 @@
 
 Branch Diff shows everything changed on the current Git branch, including committed work that VS Code's standard working-tree view no longer shows. It compares against the commit where the branch split from its base and presents the results in a dedicated Activity Bar view, alongside distinctive editor markers and the standard diff UI.
 
+The small product website lives in [`website/`](website/README.md).
+
 ## Features
 
 - Automatically detects the nearest parent branch, including stacked branches.
@@ -32,9 +34,9 @@ Run `npm test` to compile and test the extension, or `npm run package` to create
 
 ## Usage
 
-The extension starts enabled. Open the distinctive **Branch Diff** tab in the Activity Bar. Use its title-bar controls or run **Branch Diff: Choose Comparison Branch** to select a different base. Choose **Automatic** to return to parent-branch detection.
+The extension starts enabled. Open the distinctive **Branch Diff** tab in the Activity Bar. The title bar has compact icons for choosing a comparison branch, choosing a diff scope, switching layouts, and refreshing. Click the **Base** row or run **Branch Diff: Choose Comparison Branch** to select a different base. Choose **Automatic** to return to parent-branch detection.
 
-Use the scope control beside the base to choose what the comparison includes:
+Click the **Scope** row or the filter icon to choose what the comparison includes:
 
 - **Committed only** — commits made after the branch split.
 - **Committed + staged** — committed changes plus the current Git index.
@@ -63,13 +65,13 @@ Other commands:
 - **Branch Diff: Toggle Decorations**
 - **Branch Diff: Use Automatic Base**
 
-Changed files appear only under **Branch Changes** in the dedicated Branch Diff view, keeping them separate from uncommitted changes in Source Control. The view uses its own accent colors and explicit branch-status labels. Selecting a file opens the full comparison.
+Changed files appear only under **Branch Changes** in the dedicated Branch Diff view, keeping them separate from uncommitted changes in Source Control. The view uses its own accent colors and status icons; hover over a file for its full path and branch status. Selecting a file opens the full comparison.
 
 When there are no files to show, the view explains whether the comparison is empty, Branch Diff is disabled, no repository was found, or the comparison failed. Use the actions in the view to choose a base or scope, enable Branch Diff, open a repository folder, or retry. Hover over a failed comparison message for the error details. In multi-repository workspaces, each repository shows its own state and recovery actions.
 
 ## How automatic base detection works
 
-The **Comparison base** row shows the selected ref and the short merge-base commit ID. Hover over it to see why that base was chosen and the full comparison commit. Click it to choose another base. The explanation distinguishes explicit settings, matching branch mappings, nearest ancestors, and default/previous-commit fallbacks. It is available in both layouts, including empty comparisons.
+The **Base** row shows the selected ref and the short merge-base commit ID. Hover over it to see why that base was chosen and the full comparison commit. Click it to choose another base. The explanation distinguishes explicit settings, matching branch mappings, nearest ancestors, and default/previous-commit fallbacks. It is available in both layouts, including empty comparisons.
 
 By default, Branch Diff finds the closest local branch whose tip is an ancestor of the current branch. Given `main → A → B → C`, this selects `B` from `C`, `A` from `B`, and `main` from `A`.
 
