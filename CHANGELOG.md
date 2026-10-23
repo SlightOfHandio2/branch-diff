@@ -2,12 +2,19 @@
 
 Notable changes to Branch Diff are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 1.0.0 — 2026-10-23
+
+### Added
+
+- First stable release, with automatic comparison bases, three diff scopes, file statistics, rename detection, and editor markers.
+- Oddiss branding and a dedicated extension icon.
+- A product website with installation links, documentation, and an Oddiss footer link.
 
 ### Fixed
 
 - Reduce Git process spikes during branch changes: filter ancestor branches in one Git query, share distance checks for branch aliases, and limit concurrent checks.
 - Coalesce overlapping refreshes and stop superseded comparisons before doing further diff work.
+
 ## 0.4.7
 
 - Replace long toolbar labels with compact icons and add clickable Base and Scope rows.

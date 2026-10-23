@@ -23,6 +23,12 @@ git push origin v1.0.0
 
 The release workflow verifies that the tag matches the package version, runs the test suite, packages the extension, and creates a GitHub release with the VSIX attached. Do not create the tag until the matching version is committed on the default branch.
 
+For curated release notes, add `.github/release-notes/v<VERSION>.md` before tagging. The workflow uses that file when present and otherwise generates notes automatically. Notes for `v1.0.0` are prepared.
+
+## Product website
+
+The site is deployed to existing Oddiss hosting. Build it with `npm ci --prefix website` and `npm run build --prefix website`, then upload the contents of `website/dist/` to the site's web root after the GitHub release is available. See `website/README.md` for deployment details. CI also produces a `branch-diff-website` artifact.
+
 ## VS Code Marketplace
 
 Marketplace publishing requires a VS Code Marketplace publisher and a publishing token. Before enabling it:

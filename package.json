@@ -1,8 +1,9 @@
 {
   "name": "branch-diff",
   "displayName": "Branch Diff",
+  "icon": "media/logo.png",
   "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
-  "version": "0.4.7",
+  "version": "1.0.0",
   "publisher": "local",
   "license": "MIT",
   "repository": {

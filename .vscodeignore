@@ -8,6 +8,7 @@ tsconfig.json
 node_modules/.cache/**
 website/**
 dist/test/**
+dist/*.zip
 **/*.map
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md

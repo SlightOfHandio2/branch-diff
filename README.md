@@ -115,7 +115,7 @@ Branch Diff adds compact colored glyph-margin and overview-ruler markers instead
 - Rename detection follows Git's similarity matching for tracked files. Stage a moved file to let Git detect its rename; an untracked destination remains separate. Exclusions match the destination path of a rename.
 
 - Branch Diff's colored editor and overview-ruler markers remain visually separate from VS Code's normal working-tree gutter markers.
-- Nested repositories that are not the workspace root are not discovered in this first version.
+- Nested repositories must be opened as workspace folders to be discovered.
 
 ## Contributing and support
 

@@ -54,10 +54,10 @@ export default function App() {
             staged, unstaged, and untracked work.
           </p>
           <div className="actions">
-            <a className="primary" href={githubUrl}>View source <span aria-hidden="true">↗</span></a>
+            <a className="primary" href={`${githubUrl}/releases/latest`}>Download extension <span aria-hidden="true">↗</span></a>
             <a href={`${githubUrl}#usage`}>Read the docs <span aria-hidden="true">↗</span></a>
           </div>
-          <p className="requirement">VS Code 1.95+ · Git required</p>
+          <p className="requirement">VS Code 1.95+ · Git required · Install from VSIX in the Extensions menu</p>
         </div>
         <ProductView />
       </section>
