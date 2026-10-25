@@ -1,6 +1,6 @@
-# Branch Diff website
+# Diff Branch website
 
-The product website for Branch Diff, built with React and Vite.
+The product website for Diff Branch, built with React and Vite.
 
 ## Local development
 

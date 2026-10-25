@@ -138,7 +138,7 @@ class BranchRepository implements vscode.Disposable {
       this.fireOpenOriginals();
       this.clearVisibleDecorations();
       if (showErrors) {
-        void vscode.window.showErrorMessage(`Branch Diff: ${errorMessage(error)}`);
+        void vscode.window.showErrorMessage(`Diff Branch: ${errorMessage(error)}`);
       }
     }
   }
@@ -204,7 +204,7 @@ class BranchRepository implements vscode.Disposable {
       }
     ];
     const selected = await vscode.window.showQuickPick(choices, {
-      title: 'Branch Diff: choose which changes to include',
+      title: 'Diff Branch: choose which changes to include',
       placeHolder: `Current scope: ${scopeLabel(this.scope)}`
     });
     if (!selected) {
@@ -329,8 +329,8 @@ class BranchRepository implements vscode.Disposable {
       return [{ label: 'Loading branch comparison…', icon: 'loading~spin' }];
     }
     if (this.state === 'disabled') {
-      return [{ label: 'Branch Diff is disabled', icon: 'circle-slash' },
-        { label: 'Enable Branch Diff', icon: 'play', action: 'enable' }];
+      return [{ label: 'Diff Branch is disabled', icon: 'circle-slash' },
+        { label: 'Enable Diff Branch', icon: 'play', action: 'enable' }];
     }
     if (this.state === 'error') {
       return [{ label: 'Could not compare this branch', icon: 'warning', detail: this.failure },
@@ -612,7 +612,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
             case 'scope': await repository?.chooseScope(); break;
           }
         } catch (error) {
-          void vscode.window.showErrorMessage(`Branch Diff: ${errorMessage(error)}`);
+          void vscode.window.showErrorMessage(`Diff Branch: ${errorMessage(error)}`);
         }
       }),
       vscode.commands.registerCommand('branchDiff.refresh', () => this.forSelected(repository => repository.refresh(true))),
@@ -685,7 +685,7 @@ class BranchDiffController implements vscode.Disposable, vscode.TextDocumentCont
     } else if (this.repositories.length === 1) {
       await action(this.repositories[0]);
     } else if (this.repositories.length === 0) {
-      void vscode.window.showInformationMessage('Branch Diff: no Git repository found in this workspace.');
+      void vscode.window.showInformationMessage('Diff Branch: no Git repository found in this workspace.');
     }
   }
 

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are made against the latest released version of Branch Diff.
+Security fixes are made against the latest released version of Diff Branch.
 
 ## Reporting a vulnerability
 

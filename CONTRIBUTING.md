@@ -1,12 +1,12 @@
-# Contributing to Branch Diff
+# Contributing to Diff Branch
 
-Thanks for helping improve Branch Diff. Bug reports, feature ideas, documentation fixes, and code contributions are welcome.
+Thanks for helping improve Diff Branch. Bug reports, feature ideas, documentation fixes, and code contributions are welcome.
 
 ## Before opening an issue
 
 - Search existing issues first.
 - Check that the problem still occurs with the latest version.
-- For bugs, include your VS Code version, operating system, Git version, relevant Branch Diff settings, and clear reproduction steps.
+- For bugs, include your VS Code version, operating system, Git version, relevant Diff Branch settings, and clear reproduction steps.
 - Do not post security vulnerabilities publicly; follow [SECURITY.md](SECURITY.md) instead.
 
 ## Development setup

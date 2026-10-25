@@ -1,4 +1,4 @@
-# Releasing Branch Diff
+# Releasing Diff Branch
 
 Releases are built by GitHub Actions when a version tag is pushed.
 
@@ -17,7 +17,7 @@ Releases are built by GitHub Actions when a version tag is pushed.
 Set the version once, then create and push a matching annotated tag. For example, for version `1.0.0`:
 
 ```bash
-git tag -a v1.0.0 -m "Branch Diff 1.0.0"
+git tag -a v1.0.0 -m "Diff Branch 1.0.0"
 git push origin v1.0.0
 ```
 

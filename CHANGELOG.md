@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to Branch Diff are documented here. This project follows [Semantic Versioning](https://semver.org/).
+Notable changes to Diff Branch are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
 ## 1.0.0 — 2026-10-23
 
@@ -32,9 +32,9 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 - Git rename detection across diff scopes, with old-to-new paths, original-file comparisons, and line markers limited to edits within renamed files.
 
-- Explicit loading, empty, disabled, missing-repository, and comparison-error states, with recovery actions in the Branch Diff view.
+- Explicit loading, empty, disabled, missing-repository, and comparison-error states, with recovery actions in the Diff Branch view.
 
-- A dedicated Branch Diff Activity Bar view, separate from normal Source Control changes.
+- A dedicated Diff Branch Activity Bar view, separate from normal Source Control changes.
 - Colored branch-status icons, explicit branch labels, and a comparison banner in the new view.
 - Per-branch comparison-base mappings with wildcard support.
 - Configurable colors for separate branch-change markers.
@@ -53,4 +53,4 @@ Notable changes to Branch Diff are documented here. This project follows [Semant
 
 ## 0.2.0
 
-- Initial public version of the Branch Diff source-control provider.
+- Initial public version of the Diff Branch source-control provider.

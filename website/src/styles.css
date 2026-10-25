@@ -74,6 +74,7 @@ footer a { display: inline-flex; align-items: center; gap: .3rem; text-decoratio
   header, .hero, .capabilities, footer { width: calc(100% - 2.5rem); }
   header { min-height: 82px; }
   .wordmark { gap: .3rem; font-size: 1.5rem; }
+  .wordmark span { max-width: 130px; line-height: 1.15; }
   .logo { width: 30px; height: 30px; }
   .header-meta { gap: 1.1rem; }
   .header-meta a { font-size: .8rem; }
@@ -91,7 +92,8 @@ footer a { display: inline-flex; align-items: center; gap: .3rem; text-decoratio
 
 @media (max-width: 360px) {
   .header-meta { gap: .7rem; }
-  .wordmark { font-size: 1.3rem; }
+  .wordmark { font-size: 1.15rem; }
+  .wordmark span { max-width: 115px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

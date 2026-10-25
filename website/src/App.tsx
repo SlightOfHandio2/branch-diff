@@ -12,7 +12,7 @@ function Logo() {
 
 function ProductView() {
   return (
-    <div className="product-view" aria-label="Example of the Branch Diff view">
+    <div className="product-view" aria-label="Example of the Diff Branch view">
       <div className="product-bar">
         <span>BRANCH CHANGES</span>
       </div>
@@ -35,9 +35,9 @@ export default function App() {
   return (
     <main id="top">
       <header>
-        <a className="wordmark" href="#top" aria-label="Branch Diff home">
+        <a className="wordmark" href="#top" aria-label="Diff Branch home">
           <Logo />
-          <span>Branch Diff</span>
+          <span>Diff Branch</span>
         </a>
         <nav className="header-meta" aria-label="Main navigation">
           <a href="#capabilities-title">Features</a>
@@ -50,7 +50,7 @@ export default function App() {
           <p className="eyebrow">A VS Code extension by Oddiss</p>
           <h1>Review branch changes in VS Code.</h1>
           <p className="intro">
-            Branch Diff compares the current branch with its merge base, including committed,
+            Diff Branch compares the current branch with its merge base, including committed,
             staged, unstaged, and untracked work.
           </p>
           <div className="actions">
@@ -77,7 +77,7 @@ export default function App() {
       </section>
 
       <footer>
-        <span>Branch Diff · MIT licence</span>
+        <span>Diff Branch · MIT licence</span>
         <nav aria-label="Footer"><a href={githubUrl}>Source</a><a href={`${githubUrl}/issues`}>Issues</a></nav>
         <a className="powered-by" href="https://oddiss.com/">Powered by <strong>Oddiss</strong> <span aria-hidden="true">↗</span></a>
       </footer>

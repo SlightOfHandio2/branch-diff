@@ -1,6 +1,6 @@
 # Code of conduct
 
-Branch Diff is committed to a welcoming, respectful, and harassment-free community.
+Diff Branch is committed to a welcoming, respectful, and harassment-free community.
 
 ## Expected behavior
 

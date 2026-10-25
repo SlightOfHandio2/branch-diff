@@ -1,6 +1,6 @@
 {
   "name": "branch-diff",
-  "displayName": "Branch Diff",
+  "displayName": "Diff Branch",
   "icon": "media/logo.png",
   "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
   "version": "1.0.0",
@@ -34,31 +34,31 @@
     "commands": [
       {
         "command": "branchDiff.toggleLayout",
-        "title": "Branch Diff: Toggle Flat / Folder Tree",
+        "title": "Diff Branch: Toggle Flat / Folder Tree",
         "icon": "$(list-tree)"
       },
       {
         "command": "branchDiff.chooseBase",
-        "title": "Branch Diff: Choose Comparison Branch",
+        "title": "Diff Branch: Choose Comparison Branch",
         "icon": "$(git-branch)"
       },
       {
         "command": "branchDiff.chooseScope",
-        "title": "Branch Diff: Choose Diff Scope",
+        "title": "Diff Branch: Choose Diff Scope",
         "icon": "$(filter)"
       },
       {
         "command": "branchDiff.useAutomaticBase",
-        "title": "Branch Diff: Use Automatic Base"
+        "title": "Diff Branch: Use Automatic Base"
       },
       {
         "command": "branchDiff.refresh",
-        "title": "Branch Diff: Refresh",
+        "title": "Diff Branch: Refresh",
         "icon": "$(refresh)"
       },
       {
         "command": "branchDiff.toggle",
-        "title": "Branch Diff: Toggle Decorations"
+        "title": "Diff Branch: Toggle Decorations"
       },
       {
         "command": "branchDiff.openChange",
@@ -69,7 +69,7 @@
       "activitybar": [
         {
           "id": "branchDiff",
-          "title": "Branch Diff",
+          "title": "Diff Branch",
           "icon": "media/branch-diff.svg"
         }
       ]
@@ -80,14 +80,14 @@
           "id": "branchDiff.changes",
           "name": "Branch Changes",
           "icon": "media/branch-diff.svg",
-          "contextualTitle": "Branch Diff"
+          "contextualTitle": "Diff Branch"
         }
       ]
     },
     "colors": [
       {
         "id": "branchDiff.accent",
-        "description": "Accent color used by the Branch Diff view.",
+        "description": "Accent color used by the Diff Branch view.",
         "defaults": {
           "dark": "#C586C0",
           "light": "#8E3A86",
@@ -127,7 +127,7 @@
       }
     ],
     "configuration": {
-      "title": "Branch Diff",
+      "title": "Diff Branch",
       "properties": {
         "branchDiff.viewLayout": {
           "type": "string",
@@ -163,7 +163,7 @@
             "Committed, staged, unstaged, and untracked changes."
           ],
           "default": "all",
-          "description": "Which changes to include in Branch Diff."
+          "description": "Which changes to include in Diff Branch."
         },
         "branchDiff.exclude": {
           "type": "array",
@@ -173,7 +173,7 @@
             "type": "string"
           },
           "uniqueItems": true,
-          "markdownDescription": "Glob patterns for files Branch Diff should ignore. Supports `*`, `**`, and `?`. Examples: `**/*.snap`, `dist/**`, and `package-lock.json`."
+          "markdownDescription": "Glob patterns for files Diff Branch should ignore. Supports `*`, `**`, and `?`. Examples: `**/*.snap`, `dist/**`, and `package-lock.json`."
         },
         "branchDiff.branchBases": {
           "type": "object",
@@ -226,7 +226,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "Colors for Branch Diff's separate editor and overview-ruler markers."
+          "description": "Colors for Diff Branch's separate editor and overview-ruler markers."
         }
       }
     },
