@@ -3,7 +3,7 @@
   "displayName": "Diff Branch",
   "icon": "media/logo.png",
   "description": "Review changes across your Git branch, including committed work, with a changed-files view and editor markers.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "oddiss",
   "license": "MIT",
   "repository": {
