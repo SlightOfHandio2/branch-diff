@@ -5,11 +5,9 @@
 
 Diff Branch shows everything changed on the current Git branch, including committed work that VS Code's standard working-tree view no longer shows. It compares against the commit where the branch split from its base and presents the results in a dedicated Activity Bar view, alongside distinctive editor markers and the standard diff UI.
 
-The small product website lives in [`website/`](website/README.md).
-
 ## Features
 
-- Automatically detects the nearest parent branch, including stacked branches.
+- Automatically chooses a comparison base, with support for stacked branches and manual overrides.
 - Shows committed, staged, unstaged, and untracked changes in a dedicated Diff Branch view.
 - Shows Git-detected renames as a single `old → new` entry, with diffs against the original file and markers for actual edits.
 - Switches between committed-only, committed-plus-staged, and complete diff scopes.
@@ -20,21 +18,17 @@ The small product website lives in [`website/`](website/README.md).
 
 ## Installation
 
-Download the latest `.vsix` file from [GitHub Releases](https://github.com/SlightOfHandio2/branch-diff/releases). In VS Code, open the Extensions view, select the `…` menu, choose **Install from VSIX…**, and select the downloaded file.
+In VS Code, open **Extensions**, search for **Diff Branch**, and select the extension published by **Oddiss**. You can also open its [Marketplace listing](https://marketplace.visualstudio.com/items?itemName=oddiss.diff-branch).
+
+To install a downloaded `.vsix` instead, open **Extensions → ⋯ → Install from VSIX…** and select the file. Release packages are available from [GitHub Releases](https://github.com/SlightOfHandio2/branch-diff/releases).
 
 Diff Branch requires VS Code 1.95 or later and Git available on your system path.
 
-## Development
-
-1. Run `npm ci`.
-2. Open this folder in VS Code.
-3. Press `F5` and open a Git project in the Extension Development Host.
-
-Run `npm test` to compile and test the extension, or `npm run package` to create an installable VSIX. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution workflow.
-
 ## Usage
 
-The extension starts enabled. Open the distinctive **Diff Branch** tab in the Activity Bar. The title bar has compact icons for choosing a comparison branch, choosing a diff scope, switching layouts, and refreshing. Click the **Base** row or run **Diff Branch: Choose Comparison Branch** to select a different base. Choose **Automatic** to return to parent-branch detection.
+Open a Git repository and select **Diff Branch** in the Activity Bar. The extension starts enabled and chooses a comparison base automatically. Select a changed file to open its diff.
+
+Use the title-bar icons to choose a comparison branch, choose a diff scope, switch layouts, or refresh. Click the **Base** row or run **Diff Branch: Choose Comparison Branch** to select a different base. Choose **Automatic** to return to automatic base selection.
 
 Click the **Scope** row or the filter icon to choose what the comparison includes:
 
@@ -114,11 +108,12 @@ Diff Branch adds compact colored glyph-margin and overview-ruler markers instead
 
 - Rename detection follows Git's similarity matching for tracked files. Stage a moved file to let Git detect its rename; an untracked destination remains separate. Exclusions match the destination path of a rename.
 
-- Diff Branch's colored editor and overview-ruler markers remain visually separate from VS Code's normal working-tree gutter markers.
 - Nested repositories must be opened as workspace folders to be discovered.
 
 ## Contributing and support
 
-Contributions are welcome. Please read the [contribution guide](CONTRIBUTING.md) and [code of conduct](CODE_OF_CONDUCT.md) before opening a pull request. Use [GitHub Issues](https://github.com/SlightOfHandio2/branch-diff/issues) for bugs and feature requests, and follow the [security policy](SECURITY.md) for vulnerability reports.
+Use [GitHub Issues](https://github.com/SlightOfHandio2/branch-diff/issues) for bugs and feature requests. For security issues, follow the [security policy](https://github.com/SlightOfHandio2/branch-diff/blob/HEAD/SECURITY.md).
+
+For development setup and pull requests, see the [contribution guide](https://github.com/SlightOfHandio2/branch-diff/blob/HEAD/CONTRIBUTING.md) and [code of conduct](https://github.com/SlightOfHandio2/branch-diff/blob/HEAD/CODE_OF_CONDUCT.md).
 
 Diff Branch is available under the [MIT License](LICENSE).

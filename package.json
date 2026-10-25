@@ -2,7 +2,7 @@
   "name": "diff-branch",
   "displayName": "Diff Branch",
   "icon": "media/logo.png",
-  "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
+  "description": "Review changes across your Git branch, including committed work, with a changed-files view and editor markers.",
   "version": "1.0.0",
   "publisher": "oddiss",
   "license": "MIT",
@@ -142,7 +142,7 @@
         "branchDiff.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show native editor gutter decorations for changes made since the branch split from its comparison branch."
+          "description": "Show separate editor markers for changes made since the branch split from its comparison branch."
         },
         "branchDiff.baseBranch": {
           "type": "string",

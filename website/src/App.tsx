@@ -2,7 +2,7 @@ const githubUrl = "https://github.com/SlightOfHandio2/branch-diff";
 
 const features = [
   ["Branch comparison", "Committed, staged, unstaged, and untracked changes in one view."],
-  ["Base detection", "Finds the nearest parent branch, with a manual base when you need one."],
+  ["Base detection", "Chooses a comparison base automatically, with a manual override when you need one."],
   ["Editor markers", "Added, modified, and deleted lines appear in the gutter and overview ruler."],
 ];
 
