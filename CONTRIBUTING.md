@@ -32,18 +32,6 @@ To create an installable package:
 npm run package
 ```
 
-## Website development
-
-The product website source is in `website/`. It has its own dependencies and requires Node.js 22.12 or later.
-
-```bash
-cd website
-npm ci
-npm run dev
-```
-
-Run `npm test` from that directory to type-check and build the site. See the [website guide](website/README.md) for deployment details.
-
 ## Pull requests
 
 1. Create a focused branch from the default branch.

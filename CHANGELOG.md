@@ -8,7 +8,6 @@ Notable changes to Diff Branch are documented here. This project follows [Semant
 
 - First stable release, with automatic comparison bases, three diff scopes, file statistics, rename detection, and editor markers.
 - Oddiss branding and a dedicated extension icon.
-- A product website with installation links, documentation, and an Oddiss footer link.
 
 ### Fixed
 

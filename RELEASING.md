@@ -25,10 +25,6 @@ The release workflow verifies that the tag matches the package version, runs the
 
 For curated release notes, add `.github/release-notes/v<VERSION>.md` before tagging. The workflow uses that file when present and otherwise generates notes automatically. Notes for `v1.0.0` are prepared.
 
-## Product website
-
-The site is deployed to existing Oddiss hosting. Build it with `npm ci --prefix website` and `npm run build --prefix website`, then upload the contents of `website/dist/` to the site's web root after the GitHub release is available. See `website/README.md` for deployment details. CI also produces a `diff-branch-website` artifact.
-
 ## VS Code Marketplace
 
 The extension uses publisher ID `oddiss`, giving it the Marketplace identifier `oddiss.diff-branch`.

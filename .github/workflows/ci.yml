@@ -38,31 +38,3 @@ jobs:
           name: diff-branch-vsix
           path: diff-branch.vsix
           if-no-files-found: error
-
-  website:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: website/package-lock.json
-
-      - name: Install website dependencies
-        run: npm ci --prefix website
-
-      - name: Build website
-        run: npm test --prefix website
-
-      - name: Upload website
-        uses: actions/upload-artifact@v4
-        with:
-          name: diff-branch-website
-          path: website/dist/
-          if-no-files-found: error
