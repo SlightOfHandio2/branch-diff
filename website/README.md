@@ -19,6 +19,6 @@ Run `npm ci` followed by `npm run build`. Upload the contents of `dist/` to the 
 
 The current build assumes a dedicated domain or subdomain served at `/`. If hosting under a subdirectory, configure Vite's base path and asset URLs before deploying.
 
-Keep `index.html`, `assets/`, `branch-diff.svg`, and `og.png` together. Serve HTML with revalidation so new builds take effect; the hashed files under `assets/` can use long-lived caching.
+Keep `index.html`, `assets/`, `diff-branch.svg`, and `og.png` together. Serve HTML with revalidation so new builds take effect; the hashed files under `assets/` can use long-lived caching.
 
 Publish the GitHub release before deploying the website so the download button points to the stable release. After upload, check the homepage, favicon, download and documentation links, and the Powered by Oddiss footer link.

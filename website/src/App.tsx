@@ -7,7 +7,7 @@ const features = [
 ];
 
 function Logo() {
-  return <img className="logo" src="/branch-diff.svg" alt="" aria-hidden="true" />;
+  return <img className="logo" src="/diff-branch.svg" alt="" aria-hidden="true" />;
 }
 
 function ProductView() {

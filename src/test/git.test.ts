@@ -23,7 +23,7 @@ function run(root: string, ...args: string[]): string {
 }
 
 function repository(): string {
-  const root = mkdtempSync(path.join(tmpdir(), 'branch-diff-test-'));
+  const root = mkdtempSync(path.join(tmpdir(), 'diff-branch-test-'));
   run(root, 'init', '-b', 'main');
   run(root, 'config', 'user.name', 'Branch Diff Test');
   run(root, 'config', 'user.email', 'test@example.invalid');

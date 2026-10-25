@@ -1,5 +1,5 @@
 {
-  "name": "branch-diff",
+  "name": "diff-branch",
   "displayName": "Diff Branch",
   "icon": "media/logo.png",
   "description": "Show all current-branch changes in a dedicated view with distinctive editor markers.",
@@ -70,7 +70,7 @@
         {
           "id": "branchDiff",
           "title": "Diff Branch",
-          "icon": "media/branch-diff.svg"
+          "icon": "media/diff-branch.svg"
         }
       ]
     },
@@ -79,7 +79,7 @@
         {
           "id": "branchDiff.changes",
           "name": "Branch Changes",
-          "icon": "media/branch-diff.svg",
+          "icon": "media/diff-branch.svg",
           "contextualTitle": "Diff Branch"
         }
       ]

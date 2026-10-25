@@ -21,7 +21,7 @@ import {
   resolveBaseDetails
 } from './git';
 
-const SCHEME = 'branch-diff';
+const SCHEME = 'diff-branch';
 const CONFIG_SECTION = 'branchDiff';
 
 interface OriginalLocation {

@@ -39,7 +39,7 @@ export async function alignLineChanges(changes: BranchLineChange[], source: stri
   source = source.replace(/\r\n/g, '\n');
   working = working.replace(/\r\n/g, '\n');
   if (!changes.length || source === working) return changes;
-  const directory = await mkdtemp(path.join(tmpdir(), 'branch-diff-lines-'));
+  const directory = await mkdtemp(path.join(tmpdir(), 'diff-branch-lines-'));
   try {
     const before = path.join(directory, 'before');
     const after = path.join(directory, 'after');

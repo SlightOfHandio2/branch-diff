@@ -27,16 +27,16 @@ For curated release notes, add `.github/release-notes/v<VERSION>.md` before tagg
 
 ## Product website
 
-The site is deployed to existing Oddiss hosting. Build it with `npm ci --prefix website` and `npm run build --prefix website`, then upload the contents of `website/dist/` to the site's web root after the GitHub release is available. See `website/README.md` for deployment details. CI also produces a `branch-diff-website` artifact.
+The site is deployed to existing Oddiss hosting. Build it with `npm ci --prefix website` and `npm run build --prefix website`, then upload the contents of `website/dist/` to the site's web root after the GitHub release is available. See `website/README.md` for deployment details. CI also produces a `diff-branch-website` artifact.
 
 ## VS Code Marketplace
 
-The extension uses publisher ID `oddiss`, giving it the Marketplace identifier `oddiss.branch-diff`.
+The extension uses publisher ID `oddiss`, giving it the Marketplace identifier `oddiss.diff-branch`.
 
 For a manual release:
 
 1. Sign into the Marketplace publisher dashboard and select publisher `oddiss`.
-2. Run `npm run package` to produce `branch-diff-1.0.0.vsix` for this release.
+2. Run `npm run package` to produce `diff-branch-1.0.0.vsix` for this release.
 3. Choose **New extension → Visual Studio Code** and upload the VSIX. For later releases, increase the version and use **Update** on the existing extension.
 
 Manual uploads do not need a publishing token or CI. The GitHub release workflow publishes to GitHub only.
